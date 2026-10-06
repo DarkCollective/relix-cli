@@ -1,0 +1,102 @@
+# Contributing to the Relix command line
+
+Thank you for considering a contribution. This page is everything you need to
+produce a pull request that passes, and it is the only statement of these
+conventions you will need — nothing here points anywhere you cannot read.
+
+Everyone taking part in the project is expected to follow the
+[code of conduct](CODE_OF_CONDUCT.md).
+
+## Licensing of contributions
+
+This project is licensed under the [Apache License 2.0](LICENSE.txt). **Any contribution
+you intentionally submit for inclusion is licensed under the same terms**, as
+section 5 of that licence provides, with no additional terms or conditions. There
+is no separate contributor licence agreement.
+
+By opening a pull request you confirm that you have the right to submit the work
+under that licence — that it is your own, or that you have permission to
+contribute it — and that it carries no code under a licence incompatible with
+Apache 2.0.
+
+## How a pull request is merged
+
+**Open your pull request against `develop`**, the integration branch. `main` is
+the default branch, so choose `develop` as the base when you open it; with the
+`gh` CLI that is `gh pr create --base develop`. Once it is reviewed and approved,
+a maintainer merges it there.
+
+`develop` reaches `main` in small, frequent batches, and the batch is where the
+history is tidied: fixups are squashed into what they fix and messages reworded,
+without changing any content. A merged pull request's commits can therefore
+arrive on `main` under different hashes, and the issue it fixes is closed when
+the batch lands. Your authorship is kept throughout.
+
+`main` stays the default branch because it is what ships: scheduled workflows and
+dependency tracking follow the default branch, and they should see what is
+released rather than what is being integrated.
+
+### Promoting a batch (maintainers)
+
+1. Cut a promotion branch from `develop`:
+   `git fetch origin && git checkout -b promote/<yyyy-mm-dd> origin/develop`
+2. Tidy it — squash fixups, combine related commits, reword messages — with
+   `git rebase -i origin/main`, or `git reset --soft origin/main` and recommit.
+3. Prove that only the history changed: `git diff origin/develop promote/<yyyy-mm-dd>`
+   must print nothing. That is also what makes the batch's CI a test of exactly
+   what `develop` held.
+4. Open the pull request (`gh pr create --base main --head promote/<yyyy-mm-dd>`)
+   and merge it with **Rebase and merge**. A merge commit would add a commit of
+   its own, and a squash would collapse the tidied commits into one.
+5. Reset `develop` to the new `main`:
+   `git fetch origin && git push --force-with-lease origin origin/main:develop`.
+   Name `origin/main`, not a local `main`, which may be stale. Without this step
+   `develop` still holds the originals of commits `main` now has under other
+   hashes, and the next batch carries them twice.
+
+A branch still open at promotion time is based on the old `develop`. Rebase it
+onto the new one, keeping only its own commits:
+`git rebase --onto origin/develop <old develop tip> <branch>`, then
+`git push --force-with-lease`.
+
+A fix that has to go straight to `main` is merged back into `develop` afterwards.
+
+## Before you start
+
+For anything larger than a small fix, open an issue first and describe what you
+intend. Agreeing on the shape before the code is written saves everyone a rewrite.
+
+**Security problems are the exception**: never report one in an issue. See
+[`SECURITY.md`](SECURITY.md).
+
+**A change the engine would need belongs in
+[relix-core](https://github.com/DarkCollective/relix-core).** This project depends on
+a released version of the engine and reaches it only through its published API;
+what a command needs from the engine is added there first, where every embedder can
+use it, and the version is then raised here.
+
+## The toolchain
+
+**Java 21, and nothing else.** Please do not change the toolchain, add
+`--enable-preview`, or add a `gradle.properties` overriding the toolchain path.
+
+## Branches and commits
+
+Work on a branch named with a prefix — `feat/`, `fix/`, `docs/`, `chore/` or
+`refactor/` — followed by a short description. Write commit messages that say
+what changed and why.
+
+## Tests ride with the change
+
+A change is not complete without tests. A command's behaviour is tested through
+the command itself — its standard output, its standard error and its exit status —
+because that is the interface a script or a pipeline depends on.
+
+## Documentation rides with the change
+
+A change to a command, an option or an exit status updates its help text, which is
+also what the manual page and the site's command reference are generated from.
+
+## Questions
+
+Ask in [Discussions](https://github.com/DarkCollective/relix-cli/discussions).
