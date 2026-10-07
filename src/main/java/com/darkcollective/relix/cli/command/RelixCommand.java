@@ -1,0 +1,98 @@
+/*
+ * Copyright 2026 Darkcollective, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.darkcollective.relix.cli.command;
+
+import com.darkcollective.relix.cli.Main;
+import com.darkcollective.relix.cli.io.Host;
+import com.darkcollective.relix.cli.io.ScriptSource;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.IVersionProvider;
+import picocli.CommandLine.Mixin;
+
+import java.util.Objects;
+import java.util.concurrent.Callable;
+
+/**
+ * {@code relix}: the root command, which runs scripts when no other command is named.
+ *
+ * <p>{@code relix x.relix} and {@code relix run x.relix} are the same run; {@code run} is
+ * the default command (design §3).
+ */
+@Command(name = "relix",
+        mixinStandardHelpOptions = true,
+        versionProvider = RelixCommand.Version.class,
+        sortOptions = false,
+        usageHelpAutoWidth = true,
+        description = {
+            "Runs Relix relational-algebra scripts as a stage of a Unix pipeline.",
+            "Rows go to standard output; everything else goes to standard error.",
+            ""},
+        subcommands = RunCommand.class,
+        exitCodeListHeading = "%nExit status:%n",
+        exitCodeList = {
+            " 0:success",
+            " 2:usage error (bad option, nothing to run)",
+            " 3:the script did not parse or analyse",
+            " 4:execution failed (a data error, a limit hit)",
+            " 5:environment (a missing driver, a loose profiles.json, a connection refused)",
+            "70:internal error in relix",
+            "130:interrupted (SIGINT)",
+            "141:standard output closed (SIGPIPE)"})
+public final class RelixCommand implements Callable<Integer> {
+
+    @Mixin
+    GlobalOptions options;
+
+    @Mixin
+    ScriptOptions scripts;
+
+    private final Host host;
+
+    /**
+     * The root command over a host.
+     *
+     * @param host the process it runs in
+     */
+    public RelixCommand(Host host) {
+        this.host = Objects.requireNonNull(host, "host");
+    }
+
+    @Override
+    public Integer call() {
+        return run(scripts);
+    }
+
+    /**
+     * Runs the scripts {@code scripts} names, with this invocation's global options.
+     *
+     * @param scripts where the scripts come from
+     * @return the exit status
+     */
+    int run(ScriptOptions scripts) {
+        Invocation invocation = new Invocation(host, options);
+        return new ScriptRunner(invocation)
+                .run(ScriptSource.resolve(scripts.expressions, scripts.files, host, invocation.directory()))
+                .status();
+    }
+
+    /** The command's and the engine's versions, for {@code --version}. */
+    static final class Version implements IVersionProvider {
+        @Override
+        public String[] getVersion() {
+            return new String[] {Main.versionLine()};
+        }
+    }
+}

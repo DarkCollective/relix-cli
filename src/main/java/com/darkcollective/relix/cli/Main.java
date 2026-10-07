@@ -15,15 +15,19 @@
  */
 package com.darkcollective.relix.cli;
 
+import com.darkcollective.relix.cli.command.RelixCommand;
+import com.darkcollective.relix.cli.io.Host;
 import com.darkcollective.relix.embed.Relix;
+import com.darkcollective.relix.embed.RelixException;
+import picocli.CommandLine;
 
+import java.io.PrintWriter;
 import java.lang.module.ModuleDescriptor;
+import java.nio.charset.StandardCharsets;
 
 /**
- * The {@code relix} entry point.
- *
- * <p>For now it only says which command and which engine it is; the commands arrive with
- * the picocli entry that replaces this class's body.
+ * The {@code relix} entry point, and the one place an outcome becomes an exit status
+ * (design §3.4).
  */
 public final class Main {
 
@@ -31,20 +35,77 @@ public final class Main {
     }
 
     /**
-     * Prints the command's version and the engine's.
+     * Runs the command and exits with its status.
      *
-     * @param args ignored
+     * @param args the command line
      */
     public static void main(String[] args) {
-        System.out.println(versionLine());
+        System.exit(run(Host.system(), args));
+    }
+
+    /**
+     * Runs the command over a host and returns its exit status, without exiting.
+     *
+     * @param host the process to run in
+     * @param args the command line
+     * @return the exit status
+     */
+    public static int run(Host host, String... args) {
+        PrintWriter out = new PrintWriter(host.out(), true, StandardCharsets.UTF_8);
+        PrintWriter err = new PrintWriter(host.err(), true, StandardCharsets.UTF_8);
+        CommandLine command = new CommandLine(new RelixCommand(host))
+                .setOut(out)
+                .setErr(err)
+                .setPosixClusteredShortOptionsAllowed(true)
+                .setParameterExceptionHandler((e, ignored) -> {
+                    err.print("relix: " + e.getMessage() + "\n");
+                    err.print("Try 'relix --help' for more information.\n");
+                    err.flush();
+                    return ExitCode.USAGE.status();
+                })
+                .setExecutionExceptionHandler((e, failed, parsed) -> {
+                    ExitCode code = exitCode(e);
+                    if (e instanceof CommandFailure failure && failure.getMessage() != null) {
+                        err.print("relix: " + failure.getMessage() + "\n");
+                    } else if (code == ExitCode.USAGE) {
+                        failed.usage(err);
+                    } else if (e instanceof RelixException) {
+                        err.print("relix: " + e.getMessage() + "\n");
+                    } else if (code == ExitCode.INTERNAL) {
+                        err.print("relix: internal error; please report it with what follows\n");
+                        e.printStackTrace(err);
+                    }
+                    err.flush();
+                    return code.status();
+                });
+        int status = command.execute(args);
+        out.flush();
+        err.flush();
+        return status;
+    }
+
+    /**
+     * The exit code for a failure that escaped a command.
+     *
+     * @param failure what was thrown
+     * @return its exit code
+     */
+    static ExitCode exitCode(Throwable failure) {
+        if (failure instanceof CommandFailure f) {
+            return f.exitCode();
+        }
+        if (failure instanceof RelixException e) {
+            return ExitCode.of(e);
+        }
+        return ExitCode.INTERNAL;
     }
 
     /**
      * The command's version and the engine's, as {@code relix <version> (engine <version>)}.
      *
-     * @return the line {@code relix version} would print
+     * @return the line {@code relix --version} prints
      */
-    static String versionLine() {
+    public static String versionLine() {
         return "relix " + version(Main.class) + " (engine " + version(Relix.class) + ")";
     }
 
