@@ -29,8 +29,15 @@ a maintainer merges it there.
 `develop` reaches `main` in small, frequent batches, and the batch is where the
 history is tidied: fixups are squashed into what they fix and messages reworded,
 without changing any content. A merged pull request's commits can therefore
-arrive on `main` under different hashes, and the issue it fixes is closed when
-the batch lands. Your authorship is kept throughout.
+arrive on `main` under different hashes. Your authorship is kept throughout.
+
+The issue a pull request fixes is closed when the pull request merges into
+`develop`, not when the batch lands. GitHub only acts on closing keywords for
+merges into the default branch, so the
+[close-issues workflow](.github/workflows/close-issues.yml) does it instead: it
+reads `Fixes #N`, `Closes #N` or `Resolves #N` in the pull request's description
+and closes each issue with a comment naming the merge. `Part of #N` links an
+issue without closing it.
 
 `main` stays the default branch because it is what ships: scheduled workflows and
 dependency tracking follow the default branch, and they should see what is
