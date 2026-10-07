@@ -63,6 +63,11 @@ dependencies {
     // The streaming JSON writer behind the bundle, provenance and json outputs.
     implementation 'tools.jackson.core:jackson-core:3.2.3'
 
+    // The command line: options, subcommands, help. The annotation processor checks the
+    // annotations at compile time, and later generates the man pages and completions.
+    implementation 'info.picocli:picocli:4.7.7'
+    annotationProcessor 'info.picocli:picocli-codegen:4.7.7'
+
     testImplementation platform('org.junit:junit-bom:5.13.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation 'org.assertj:assertj-core:3.27.4'
@@ -97,7 +102,15 @@ def unpackEngineDocs = tasks.register('unpackEngineDocs', Sync) {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.compilerArgs += ['-Xlint:all', '-Werror']
+    // -processing is off: picocli-codegen checks picocli's annotations without claiming
+    // them, which javac reports as a warning, and -Werror would make an error.
+    options.compilerArgs += ['-Xlint:all,-processing', '-Werror']
+}
+
+compileJava {
+    options.compilerArgs += ["-Aproject=${project.group}/${project.name}"]
+    // The module's own version, which `relix --version` reads from its descriptor.
+    options.javaModuleVersion = provider { project.version.toString() }
 }
 
 // Javadoc is part of `check`, and a dangling {@link} or @see fails it: doclint's
