@@ -32,21 +32,26 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The command is one module and no library.
  *
  * <p>Everything in it is the command's implementation, so it exports nothing for another
- * program to depend on; and the reference-page index is the engine's ({@code relix-docs}),
+ * program to depend on, and opens its commands only to picocli; and the reference-page index is the engine's ({@code relix-docs}),
  * so the earlier console's copy of it is not here. The build publishes nothing either,
  * which {@code checkNoPublication} holds.
  */
 class ModuleShapeTest {
 
     @Test
-    void exportsNothing() throws URISyntaxException {
+    void exportsNothingAndOpensOnlyToPicocli() throws URISyntaxException {
         ModuleDescriptor descriptor = ModuleFinder.of(mainClasses()).findAll().stream()
                 .findFirst().orElseThrow(() -> new AssertionError("the main classes are not a module"))
                 .descriptor();
 
         assertThat(descriptor.name()).isEqualTo("com.darkcollective.relix.cli");
         assertThat(descriptor.exports()).as("exported packages").isEmpty();
-        assertThat(descriptor.opens()).as("opened packages").isEmpty();
+        // picocli reads the commands' options by reflection, so their package is opened
+        // to it, and to nothing else.
+        assertThat(descriptor.opens()).as("opened packages").allSatisfy(open -> {
+            assertThat(open.isQualified()).as(open.source() + " is opened to everyone").isTrue();
+            assertThat(open.targets()).as(open.source() + " is opened to").containsExactly("info.picocli");
+        });
     }
 
     @Test

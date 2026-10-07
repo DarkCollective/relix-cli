@@ -18,10 +18,15 @@
  *
  * <p>Everything here is the command's implementation, not an API: the module exports
  * nothing. It reaches the engine only through the packages the engine's own module
- * descriptors export, which the compiler enforces here.
+ * descriptors export, which the compiler enforces here. The commands are opened to
+ * picocli alone, which reads their options by reflection.
  */
 module com.darkcollective.relix.cli {
     requires com.darkcollective.relix;
     requires com.darkcollective.relix.docs;
     requires tools.jackson.core;
+    requires info.picocli;
+    requires java.sql;
+
+    opens com.darkcollective.relix.cli.command to info.picocli;
 }

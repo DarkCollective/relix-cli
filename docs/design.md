@@ -141,7 +141,8 @@ renderers and need nothing from the engine.
 **A script with several `query` statements.** `table` prints each with its label, as
 today. A machine format prints **one** result set, because a CSV with two headers is not
 a CSV: by default the *last* query (the way a shell function returns its last command),
-or the one named with `-q NAME` / `--query=NAME`. `--all` with `ndjson` emits every
+or the one named with `--query=NAME` (long form only: `-q` is `--quiet`, as in nearly
+every Unix tool). `--all` with `ndjson` emits every
 query, each row tagged `"_query": NAME`; with other machine formats `--all` is a usage
 error.
 
@@ -461,7 +462,8 @@ DarkCollective/relix-core#95.
 ## 10. Decisions
 
 - **Default output in a pipe is `tsv`**; every other format stays one `-o` away.
-- **A machine format prints the last query** of a script unless `-q` names another.
+- **A machine format prints the last query** of a script unless `--query=NAME` names
+  another. `-q` is `--quiet`, which silences warnings; the query option has no short form.
 - **An interactive session is out of scope.** It is a separate program; `ask` is not
   part of this command.
 - **Secrets come from the process environment** (and so from `op run`, `aws-vault exec`,
