@@ -26,7 +26,7 @@ jobs:
           distribution: corretto
           java-version: '21'
       # Also validates the checked-in wrapper jar against Gradle's published checksums.
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - run: ./gradlew clean build
       - name: Upload test and coverage reports
         if: always()
