@@ -14,14 +14,7 @@
  * limitations under the License.
  */
 /**
- * The {@code relix} command.
- *
- * <p>Everything here is the command's implementation, not an API: the module exports
- * nothing. It reaches the engine only through the packages the engine's own module
- * descriptors export, which the compiler enforces here.
+ * Rendering for a terminal or a pipe: the output formats a result is written in, and a
+ * reference page's markdown as a terminal shows it.
  */
-module com.darkcollective.relix.cli {
-    requires com.darkcollective.relix;
-    requires com.darkcollective.relix.docs;
-    requires tools.jackson.core;
-}
+package com.darkcollective.relix.cli.render;

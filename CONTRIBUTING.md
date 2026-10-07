@@ -103,6 +103,13 @@ below. You need no Java 21 installed beforehand: Gradle provisions it.
   Central's snapshot repository, which relix-core publishes to on every push to its
   own `develop`. `checkEnginePin` fails a release build that still pins a snapshot:
   `./gradlew checkEnginePin -PcliVersion=<release version>`.
+- **One module, no library.** The module exports nothing (`ModuleShapeTest`) and
+  the build publishes no Maven artifact (`checkNoPublication`).
+- **The engine's manuals.** The worked examples in the pinned engine's reference,
+  and the problem-solving manual's tables, must be what this command's table
+  renderer prints. The tests read them from the engine's `manuals` artifact, which
+  the build unpacks into `build/engine-docs`. A page that disagrees is fixed in
+  relix-core.
 
 ### Building against a local engine checkout
 
