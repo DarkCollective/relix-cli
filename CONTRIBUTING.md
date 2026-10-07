@@ -71,14 +71,53 @@ intend. Agreeing on the shape before the code is written saves everyone a rewrit
 
 **A change the engine would need belongs in
 [relix-core](https://github.com/DarkCollective/relix-core).** This project depends on
-a released version of the engine and reaches it only through its published API;
-what a command needs from the engine is added there first, where every embedder can
-use it, and the version is then raised here.
+a published version of the engine (a snapshot on `develop`, a released one in a
+release) and reaches it only through its published API; what a command needs from
+the engine is added there first, where every embedder can use it, and the version is
+then raised here.
 
 ## The toolchain
 
 **Java 21, and nothing else.** Please do not change the toolchain, add
 `--enable-preview`, or add a `gradle.properties` overriding the toolchain path.
+
+## The build gate
+
+A pull request is merged only when this passes on Linux, macOS and Windows, which is
+what CI runs:
+
+```bash
+./gradlew clean build
+```
+
+`build` runs the tests, Javadoc (where a dangling `{@link}` or `@see` is an error),
+JaCoCo coverage (the report is in `build/reports/jacoco/test/html`), and the checks
+below. You need no Java 21 installed beforehand: Gradle provisions it.
+
+- **The engine boundary.** The command reaches the engine only through the packages
+  the engine's module descriptors export. The compiler enforces this for the main
+  source set, which is a module; `EngineBoundaryTest` enforces it for every source
+  set, tests included. Run it alone with `./gradlew test --tests '*EngineBoundaryTest'`.
+- **The engine pin.** `relixEngineVersion` in `build.gradle` is the one place the
+  engine's version is named. On `develop` it is `1.0.0-SNAPSHOT`, resolved from
+  Central's snapshot repository, which relix-core publishes to on every push to its
+  own `develop`. `checkEnginePin` fails a release build that still pins a snapshot:
+  `./gradlew checkEnginePin -PcliVersion=<release version>`.
+
+### Building against a local engine checkout
+
+To try an engine change before it is published, build against your relix-core
+checkout as a Gradle composite build:
+
+```bash
+./gradlew build -PrelixCore=../relix-core
+```
+
+The engine's artifacts are then built from that checkout, whatever
+`relixEngineVersion` says. In this mode `relix-solver-ojalgo` arrives as its project,
+together with the engine-internal module it implements, so the runtime class path
+holds some engine classes twice. That does no harm on a class path, but do not judge
+a module-path launch by it.
 
 ## Branches and commits
 
