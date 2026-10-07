@@ -102,15 +102,15 @@ public final class ProvenanceOutput {
             }
         }
 
-        out.println(label);
-        out.println(rule(widths));
-        out.println(rowLine(header, widths));
-        out.println(rule(widths));
+        out.print(label + "\n");
+        out.print(rule(widths) + "\n");
+        out.print(rowLine(header, widths) + "\n");
+        out.print(rule(widths) + "\n");
         for (List<String> cells : body) {
-            out.println(rowLine(cells, widths));
+            out.print(rowLine(cells, widths) + "\n");
         }
-        out.println(rule(widths));
-        out.printf("(%d tuple%s; provenance semiring: %s)%n",
+        out.print(rule(widths) + "\n");
+        out.printf("(%d tuple%s; provenance semiring: %s)\n",
                 relation.size(), relation.size() == 1 ? "" : "s", semiringName);
     }
 

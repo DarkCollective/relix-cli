@@ -48,6 +48,9 @@ import java.util.stream.Stream;
  * </ul>
  * The default {@link #TABLE} format renders an aligned ASCII table and must buffer
  * each query's rows to compute column widths.
+ *
+ * <p>Every format ends its lines with {@code \n}, on Windows too: the output is data for
+ * the next stage of a pipeline, and must not change with the platform it was made on.
  */
 public enum OutputFormat {
 
@@ -59,7 +62,7 @@ public enum OutputFormat {
         }
     },
 
-    /** RFC 4180 CSV with a header row. Fully streaming. */
+    /** RFC 4180 CSV with a header row, its lines ended by {@code \n}. Fully streaming. */
     CSV {
         @Override
         public void write(PrintWriter out, String label, Schema schema, Stream<Row> rows) {
@@ -69,14 +72,14 @@ public enum OutputFormat {
                 if (i > 0) header.append(',');
                 header.append(csvField(cols.get(i).name()));
             }
-            out.println(header);
+            out.print(header + "\n");
             rows.forEach(row -> {
                 StringBuilder line = new StringBuilder();
                 for (int i = 0; i < cols.size(); i++) {
                     if (i > 0) line.append(',');
                     line.append(csvField(plainCell(row.get(i))));
                 }
-                out.println(line);
+                out.print(line + "\n");
             });
         }
     },
@@ -107,24 +110,24 @@ public enum OutputFormat {
         @Override
         public void write(PrintWriter out, String label, Schema schema, Stream<Row> rows) {
             List<ColumnDefinition> cols = schema.columns();
-            out.println("### " + label);
-            out.println();
+            out.print("### " + label + "\n");
+            out.print("\n");
             StringBuilder header = new StringBuilder("|");
             StringBuilder rule   = new StringBuilder("|");
             for (ColumnDefinition col : cols) {
                 header.append(' ').append(mdCell(col.name())).append(" |");
                 rule.append(" --- |");
             }
-            out.println(header);
-            out.println(rule);
+            out.print(header + "\n");
+            out.print(rule + "\n");
             rows.forEach(row -> {
                 StringBuilder line = new StringBuilder("|");
                 for (int i = 0; i < cols.size(); i++) {
                     line.append(' ').append(mdCell(plainCell(row.get(i)))).append(" |");
                 }
-                out.println(line);
+                out.print(line + "\n");
             });
-            out.println();
+            out.print("\n");
         }
     };
 
