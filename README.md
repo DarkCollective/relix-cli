@@ -20,7 +20,13 @@ the design being built, not a shipped interface.
 
 ## Building
 
-Requires Java 21.
+Requires Java 21, which the Gradle wrapper provisions if it is missing:
+
+```bash
+./gradlew build
+```
+
+[CONTRIBUTING.md](CONTRIBUTING.md#the-build-gate) describes what the build checks.
 
 ## Licence
 
