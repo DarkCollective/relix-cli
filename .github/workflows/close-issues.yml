@@ -1,0 +1,55 @@
+# Closes the issues a pull request fixes when it merges into develop. GitHub acts on
+# closing keywords only for merges into the default branch, main, which develop reaches
+# in batches; this closes them at the merge itself.
+#
+# pull_request_target rather than pull_request, so that the token can write issues for a
+# pull request from a fork too. It is safe here because nothing is checked out or run
+# from the pull request: its body is only read, as data.
+name: Close issues
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [develop]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  close:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const escape = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            // A closing keyword, then #N or owner/repo#N naming this repository.
+            // References to other repositories, and "Part of #N", do not match.
+            const closing = new RegExp(
+              `\\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\\s+(?:${escape(owner)}/${escape(repo)})?#(\\d+)\\b`,
+              'gi');
+            const numbers = [...new Set(
+              [...(pr.body ?? '').matchAll(closing)].map(m => Number(m[1])))];
+            const sha = pr.merge_commit_sha.slice(0, 7);
+            for (const issue_number of numbers) {
+              let issue;
+              try {
+                ({ data: issue } = await github.rest.issues.get({ owner, repo, issue_number }));
+              } catch (e) {
+                core.warning(`#${issue_number}: ${e.message}`);
+                continue;
+              }
+              if (issue.pull_request || issue.state !== 'open') continue;
+              await github.rest.issues.createComment({
+                owner, repo, issue_number,
+                body: `Done in #${pr.number}, merged to develop (${sha}).`,
+              });
+              await github.rest.issues.update({
+                owner, repo, issue_number, state: 'closed', state_reason: 'completed',
+              });
+              core.info(`Closed #${issue_number}`);
+            }
