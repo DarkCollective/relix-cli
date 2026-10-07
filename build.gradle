@@ -1,0 +1,126 @@
+// relix-cli: the `relix` command, a front end to the Relix engine.
+//
+// It depends on the engine as any program outside relix-core would: published coordinates,
+// reached only through the packages the engine's module descriptors export. The main
+// source set is a module, so the compiler holds it to those exports; EngineBoundaryTest
+// holds every source set to them, including the ones that run on a class path.
+
+plugins {
+    id 'java'
+    id 'jacoco'
+}
+
+group = 'com.darkcollective.relix'
+// A release is built with -PcliVersion=<version>; anything else is a snapshot.
+version = findProperty('cliVersion') ?: '0.1.0-SNAPSHOT'
+
+// The engine pin: the one place the engine's version is named.
+//
+// `develop` tracks the engine's own develop branch, which relix-core publishes to Central's
+// snapshot repository on every push, so that what this command needs reaches it before the
+// next release candidate is cut. A release pins a released engine (checkEnginePin).
+ext.relixEngineVersion = '1.0.0-SNAPSHOT'
+
+def engineIsSnapshot = relixEngineVersion.endsWith('-SNAPSHOT')
+
+repositories {
+    mavenCentral()
+    // Only while the pin is a snapshot: a release resolves from Central alone.
+    if (engineIsSnapshot) {
+        maven {
+            name = 'centralSnapshots'
+            url = 'https://central.sonatype.com/repository/maven-snapshots/'
+            mavenContent {
+                snapshotsOnly()
+                includeGroup 'com.darkcollective.relix'
+            }
+        }
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+dependencies {
+    // The engine, for the command and the library its embed API is.
+    implementation "com.darkcollective.relix:relix:${relixEngineVersion}"
+    // The language reference, for `relix doc`.
+    implementation "com.darkcollective.relix:relix-docs:${relixEngineVersion}"
+    // The solver OPTIMIZE and COVER EXACT need. Found through ServiceLoader, never named.
+    runtimeOnly "com.darkcollective.relix:relix-solver-ojalgo:${relixEngineVersion}"
+
+    testImplementation platform('org.junit:junit-bom:5.13.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.assertj:assertj-core:3.27.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-Xlint:all', '-Werror']
+}
+
+// Javadoc is part of `check`, and a dangling {@link} or @see fails it: doclint's
+// `reference` group reports those, and -Xwerror turns every report into a failure.
+tasks.withType(Javadoc).configureEach {
+    options.encoding = 'UTF-8'
+    options.addStringOption('Xdoclint:all,-missing', '-quiet')
+    options.addBooleanOption('Xwerror', true)
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('javadoc')
+}
+
+test {
+    useJUnitPlatform()
+    // The boundary test reads every source set's classes, not only its own: a source set
+    // added later is covered without being listed here.
+    def classes = sourceSets.collect { it.output.classesDirs }
+    dependsOn sourceSets.collect { it.classesTaskName }
+    inputs.files(classes).withPropertyName('boundaryClasses')
+    jvmArgumentProviders.add({
+        ["-Drelix.cli.classesDirs=${files(classes).files.findAll { it.exists() }.join(File.pathSeparator)}".toString()]
+    } as CommandLineArgumentProvider)
+    finalizedBy tasks.named('jacocoTestReport')
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+// A release must not depend on a snapshot engine: a snapshot is replaced on every push to
+// relix-core's develop, so a release built on one could not be rebuilt.
+def checkEnginePin = tasks.register('checkEnginePin') {
+    group = 'verification'
+    description = 'Fails a release build whose engine pin is a -SNAPSHOT.'
+    def cliVersion = version.toString()
+    def engineVersion = relixEngineVersion
+    inputs.property('cliVersion', cliVersion)
+    inputs.property('engineVersion', engineVersion)
+    doLast {
+        if (!cliVersion.endsWith('-SNAPSHOT') && engineVersion.endsWith('-SNAPSHOT')) {
+            throw new GradleException(
+                    "Release ${cliVersion} pins the engine to ${engineVersion}. " +
+                    "Set relixEngineVersion in build.gradle to a released engine.")
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn checkEnginePin
+}
+
+jar {
+    manifest {
+        attributes('Implementation-Title': project.name,
+                'Implementation-Version': project.version,
+                'Relix-Engine-Version': relixEngineVersion)
+    }
+}
