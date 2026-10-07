@@ -44,6 +44,14 @@ java {
     }
 }
 
+configurations {
+    // The pinned engine's manuals, which the documentation guards read.
+    engineManuals {
+        canBeConsumed = false
+        transitive = false
+    }
+}
+
 dependencies {
     // The engine, for the command and the library its embed API is.
     implementation "com.darkcollective.relix:relix:${relixEngineVersion}"
@@ -52,10 +60,39 @@ dependencies {
     // The solver OPTIMIZE and COVER EXACT need. Found through ServiceLoader, never named.
     runtimeOnly "com.darkcollective.relix:relix-solver-ojalgo:${relixEngineVersion}"
 
+    // The streaming JSON writer behind the bundle, provenance and json outputs.
+    implementation 'tools.jackson.core:jackson-core:3.2.3'
+
     testImplementation platform('org.junit:junit-bom:5.13.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation 'org.assertj:assertj-core:3.27.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    engineManuals "com.darkcollective.relix:relix:${relixEngineVersion}:manuals@zip"
+}
+
+// The pinned engine's manuals, laid out as the engine's repository holds them
+// (docs/reference, docs/guide, docs/problem-solving), for the guards that check the
+// pages' printed output against this command's renderer. Built against a local engine
+// checkout (-PrelixCore), they are that checkout's own docs/ instead: a project
+// substituted for the engine offers no manuals zip.
+def engineDocsDir = layout.buildDirectory.dir('engine-docs')
+def relixCore = findProperty('relixCore')
+def unpackEngineDocs = tasks.register('unpackEngineDocs', Sync) {
+    description = "Unpacks the pinned engine's manuals into build/engine-docs."
+    if (relixCore) {
+        from(file("${relixCore}/docs")) {
+            include 'reference/**', 'guide/**', 'problem-solving/**'
+            into 'docs'
+        }
+    } else {
+        from({ zipTree(configurations.engineManuals.singleFile) }) {
+            include 'reference/**', 'guide/**', 'problem-solving/**'
+            into 'docs'
+        }
+    }
+    includeEmptyDirs = false
+    into engineDocsDir
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -85,6 +122,9 @@ test {
     jvmArgumentProviders.add({
         ["-Drelix.cli.classesDirs=${files(classes).files.findAll { it.exists() }.join(File.pathSeparator)}".toString()]
     } as CommandLineArgumentProvider)
+    dependsOn unpackEngineDocs
+    inputs.dir(engineDocsDir).withPropertyName('engineDocs')
+    systemProperty 'relix.engine.docs', engineDocsDir.get().asFile.absolutePath
     finalizedBy tasks.named('jacocoTestReport')
 }
 
@@ -115,6 +155,25 @@ def checkEnginePin = tasks.register('checkEnginePin') {
 
 tasks.named('check') {
     dependsOn checkEnginePin
+}
+
+// Nothing here is published to a Maven repository: the command ships as a platform image,
+// and its packages are its implementation, not a library (design §7.2).
+def checkNoPublication = tasks.register('checkNoPublication') {
+    group = 'verification'
+    description = 'Fails the build if a Maven publication is configured.'
+    def publishing = ['maven-publish', 'ivy-publish'].findAll { pluginManager.hasPlugin(it) }
+    inputs.property('publishingPlugins', publishing)
+    doLast {
+        if (publishing) {
+            throw new GradleException(
+                    "This build publishes no artifact, but applies ${publishing.join(', ')}.")
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn checkNoPublication
 }
 
 jar {
