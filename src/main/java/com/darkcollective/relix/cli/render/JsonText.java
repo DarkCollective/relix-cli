@@ -13,15 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.darkcollective.relix.cli.render;
+
+import tools.jackson.core.io.JsonStringEncoder;
+
 /**
- * The {@code relix} command.
- *
- * <p>Everything here is the command's implementation, not an API: the module exports
- * nothing. It reaches the engine only through the packages the engine's own module
- * descriptors export, which the compiler enforces here.
+ * A string as a JSON string literal, for the renderers here that lay their JSON out by
+ * hand so a human can read it as well as a program.
  */
-module com.darkcollective.relix.cli {
-    requires com.darkcollective.relix;
-    requires com.darkcollective.relix.docs;
-    requires tools.jackson.core;
+public final class JsonText {
+
+    private JsonText() {
+    }
+
+    /** {@code value} quoted and escaped as a JSON string. */
+    public static String quote(String value) {
+        StringBuilder out = new StringBuilder(value.length() + 2).append('"');
+        JsonStringEncoder.getInstance().quoteAsString(value, out);
+        return out.append('"').toString();
+    }
 }
