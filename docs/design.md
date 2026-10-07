@@ -135,8 +135,8 @@ Inference and stream reading are API request **R1** (§9).
 Format modifiers: `--no-header` (csv/tsv), `--null=STRING` (how NULL is written; default
 empty for csv/tsv, `NULL` in a table), `--color=auto|always|never`.
 
-`tsv` and `ndjson` are added to `OutputFormat` in `relix-console`; they are renderers and
-need nothing from the engine.
+`tsv` and `ndjson` are formats of the command's own `OutputFormat` (§7.2); they are
+renderers and need nothing from the engine.
 
 **A script with several `query` statements.** `table` prints each with its label, as
 today. A machine format prints **one** result set, because a CSV with two headers is not
@@ -325,32 +325,44 @@ Everything goes through `com.darkcollective.relix.embed`:
 | `explain`, `optimize`, `trace`, `bundle`, `ir`, `provenance` | `explain`/`explainJson`, `optimized().render()` + `rewrites()`, `stream(listener)`, `renderJson`, `model().ir()`, `provenance(semiring[, weight])` |
 | `fmt` | the statement printer behind `Relix.definitions()` |
 | `catalog ls/schema` | `relation("relix.relations")` etc. |
-| `doc` | `Relix.referencePages()` via `relix-console`'s `DocRegistry` |
+| `doc` | the reference lookup in `relix-docs` (R5): language pages and the installed functions' pages, one index |
 
 A boundary test holds every source set, tests included, to the packages the engine jar's module descriptor exports; the modular build gets that from the compiler, and the test covers what runs on a class path.
 
 ### 7.2 Repository layout
 
-Two modules, released together at one version:
+One module, `relix-cli`, and no library. The module exports nothing: everything below is
+the command's implementation, not an API, and none of it is published to Maven Central.
 
 ```
-relix-console    a published library: the row renderers (OutputFormat and its
-                 formatters, provenance output, the playground bundle, the
-                 optimisation report), profile loading, the .relix file loader
-                 that resolves imports, the reference-page index behind
-                 `relix doc`, download progress. Other front ends (an interactive
-                 session, an editor plugin) depend on a released version of it.
 relix-cli        the command:
   com.darkcollective.relix.cli
     Main         picocli entry, exit-code mapping, signal hooks
     command/     one class per command (Run, Check, Explain, Optimize, …)
     catalog/     Discovery (walk, root marker), Overlay (nearest-wins), Trust
     io/          ScriptSource (-e / files / stdin), InputBinding (-i), RowSink
-                 (EPIPE-aware), Terminal (isatty, NO_COLOR, pager)
-    config/      relixrc, profiles.json
+                 (EPIPE-aware), Terminal (isatty, NO_COLOR, pager),
+                 FileScriptLoader (the engine's ScriptLoader over files, so
+                 `import` resolves relative to the importing file)
+    config/      relixrc, profiles.json, ${VAR} placeholders
+    render/      OutputFormat and its formatters (table, tsv, csv, ndjson,
+                 json, markdown), DocPage (a reference page on a terminal)
+    report/      the bundle JSON, provenance output, the optimisation report
+    drivers/     driver download and its progress display
 ```
 
-`TSV` and `NDJSON` are added to `relix-console`.
+Where this code already exists, in the earlier command's `relix-console` module in
+DarkCollective/relix, it is brought in as a starting point and changed freely; nothing
+keeps the two copies in step.
+What the command needs and the engine does not offer goes into one of two places: the
+command, or, when another embedder would need the same thing, the engine's published API
+(§9). The reference-page index is the one case so far that belongs in the engine (R5).
+
+**A guard follows its renderer.** The test that renders every worked example in the
+engine's reference pages and diffs the result against the table the page prints comes
+here with the table renderer, reading the engine's `manuals` artifact for the pinned
+version: its claim is that the manual's pasted output is what a user of this command
+sees.
 
 ### 7.3 Packaging
 
@@ -439,6 +451,13 @@ the three; the CLI can ship without it.
 an in-progress JDBC statement and an HTTP fetch, not only the iteration. Needed for
 §3.6; not yet confirmed.
 
+**R5 — The reference lookup in `relix-docs`.** `relix doc` finds a page by glyph,
+keyword or name, across the language pages and the pages of the installed functions, with
+a language keyword keeping a shared name (`fix` is the operator; `Fix` the function is
+found as a function). Every program that shows the reference needs that same index, so it
+belongs beside the pages it indexes rather than in each front end. Filed as
+DarkCollective/relix-core#95.
+
 ## 10. Decisions
 
 - **Default output in a pipe is `tsv`**; every other format stays one `-o` away.
@@ -450,10 +469,13 @@ an in-progress JDBC statement and an HTTP fetch, not only the iteration. Needed 
   from a user-only `profiles.json`. `-D` is for non-secret values and is documented so.
 - **Project catalogs are trusted per directory**, direnv-style (§5.4).
 - **`-P/--profile` replaces `-e/--env`**; `-e` is the inline expression.
-- **R1–R4 are filed on relix-core**: R1 DarkCollective/relix-core#80, R2 #81, R3 #82,
-  R4 #83.
-- **`relix-console` lives here and is published** as a library, so other front ends
-  consume a released version of it.
+- **R1–R5 are filed on relix-core**: R1 DarkCollective/relix-core#80, R2 #81, R3 #82,
+  R4 #83, R5 #95.
+- **No library is published from here.** The renderers, reports, script loader, profile
+  loading and download progress are internal packages of the command. What the command
+  needs goes into the command, or into the engine's published API when another embedder
+  would need it too; a second published artifact would be an API promise for code that
+  is not one.
 - **The tap and bucket stay private until the first release.**
 - **No backward compatibility** is needed with the earlier, unpublished command.
 
