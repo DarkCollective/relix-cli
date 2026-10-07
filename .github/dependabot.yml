@@ -1,0 +1,16 @@
+# Version updates open against develop, where pull requests go (CONTRIBUTING.md).
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    ignore:
+      # The engine pin is raised by hand, once the engine has what a command needs.
+      - dependency-name: com.darkcollective.relix:*
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
