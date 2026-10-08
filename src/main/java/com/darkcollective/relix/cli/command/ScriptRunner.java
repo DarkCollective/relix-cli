@@ -17,6 +17,7 @@ package com.darkcollective.relix.cli.command;
 
 import com.darkcollective.relix.cli.CommandFailure;
 import com.darkcollective.relix.cli.ExitCode;
+import com.darkcollective.relix.cli.io.InputBinding;
 import com.darkcollective.relix.cli.io.Interruption;
 import com.darkcollective.relix.cli.io.Reporter;
 import com.darkcollective.relix.cli.io.RowSink;
@@ -36,6 +37,9 @@ import java.util.stream.Stream;
 /**
  * Runs scripts, each in a session of its own, and writes their rows to standard output.
  *
+ * <p>Each session first declares the inputs {@code -i} binds, so that the script can read
+ * them; one that cannot be read fails the script as execution does.
+ *
  * <p>A script is checked before it runs, and every diagnostic is reported, so a script
  * with three mistakes reports three; one with an error does not run. Each script is
  * independent: a failure in one does not stop the next, and the run exits with the first
@@ -54,13 +58,16 @@ final class ScriptRunner {
     private static final String TRUNCATED = "TRUNCATED";
 
     private final Invocation invocation;
+    private final InputOptions.Inputs inputs;
     private final OutputOptions.Output output;
     private final Interruption interruption;
     private final RowSink sink;
     private long printed;
 
-    ScriptRunner(Invocation invocation, OutputOptions.Output output, Interruption interruption) {
+    ScriptRunner(Invocation invocation, InputOptions.Inputs inputs, OutputOptions.Output output,
+                 Interruption interruption) {
         this.invocation = invocation;
+        this.inputs = inputs;
         this.output = output;
         this.interruption = interruption;
         this.sink = new RowSink(invocation.host().out(), output.lineBuffered());
@@ -85,6 +92,9 @@ final class ScriptRunner {
         Reporter reporter = invocation.reporter();
         try (Relix session = invocation.session(source.directory()).build()) {
             interruption.session(session);
+            if (!declareInputs(source, session)) {
+                return ExitCode.EXECUTION;
+            }
             long start = System.nanoTime();
             List<Diagnostic> diagnostics = session.validate(source.text());
             reporter.timing(source.name() + ": analysed", Duration.ofNanos(System.nanoTime() - start));
@@ -119,6 +129,28 @@ final class ScriptRunner {
         } finally {
             interruption.session(null);
         }
+    }
+
+    /**
+     * Declares every bound input on a session, reporting the first that cannot be read.
+     *
+     * @return whether all were declared
+     */
+    private boolean declareInputs(ScriptSource source, Relix session) {
+        for (InputBinding binding : inputs.bindings()) {
+            try {
+                binding.declare(session, invocation.host().in(), inputs.sample(),
+                        inputs.unbounded().contains(binding.name()));
+            } catch (RelixException e) {
+                if (interruption.interrupted()) {
+                    throw new CommandFailure(ExitCode.INTERRUPTED, null);
+                }
+                invocation.reporter().error(source.name() + ": -i " + binding.name() + "="
+                        + binding.location() + ": " + e.getMessage());
+                return false;
+            }
+        }
+        return true;
     }
 
     /** The queries to print, in order, or {@code null} when the one named is not there. */

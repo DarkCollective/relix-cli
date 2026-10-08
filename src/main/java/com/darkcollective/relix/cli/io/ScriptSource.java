@@ -113,13 +113,16 @@ public record ScriptSource(String name, String text, Path directory, List<Fragme
      * @param files       the {@code SCRIPT} arguments, in order; {@code -} is standard input
      * @param host        the process, for standard input and whether it is a terminal
      * @param directory   the directory relative paths start from ({@code -C}), absolute
+     * @param stdinBound  whether an input is bound to standard input ({@code -i NAME=…:-}),
+     *                    so that the script must come from {@code -e} or a file
      * @return one source per script, in order
      * @throws CommandFailure with {@link ExitCode#USAGE} when there is nothing to run, when
      *                        both {@code -e} and files are given, when standard input is
-     *                        named twice, or when a file cannot be read
+     *                        named twice or is both data and script, or when a file cannot
+     *                        be read
      */
     public static List<ScriptSource> resolve(List<String> expressions, List<String> files,
-                                             Host host, Path directory) {
+                                             Host host, Path directory, boolean stdinBound) {
         if (!expressions.isEmpty() && !files.isEmpty()) {
             throw new CommandFailure(ExitCode.USAGE,
                     "give the script with -e or as files, not both");
@@ -127,9 +130,17 @@ public record ScriptSource(String name, String text, Path directory, List<Fragme
         if (!expressions.isEmpty()) {
             return List.of(fromExpressions(expressions, directory));
         }
+        if (stdinBound && (files.isEmpty() || files.contains("-"))) {
+            throw new CommandFailure(ExitCode.USAGE, "standard input is bound with -i, so it cannot "
+                    + "be the script too; give the script with -e or as a file");
+        }
         if (!files.isEmpty()) {
             if (files.stream().filter("-"::equals).count() > 1) {
                 throw new CommandFailure(ExitCode.USAGE, "standard input (-) can be read only once");
+            }
+            if (stdinBound && files.size() > 1) {
+                throw new CommandFailure(ExitCode.USAGE, "standard input is bound with -i and can be "
+                        + "read once, so it can be given to one script only");
             }
             List<ScriptSource> sources = new ArrayList<>();
             for (String file : files) {

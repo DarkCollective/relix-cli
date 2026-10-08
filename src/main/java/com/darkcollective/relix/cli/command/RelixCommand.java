@@ -62,6 +62,9 @@ public final class RelixCommand implements Callable<Integer> {
     ScriptOptions scripts;
 
     @Mixin
+    InputOptions inputs;
+
+    @Mixin
     OutputOptions output;
 
     private final Host host;
@@ -80,21 +83,24 @@ public final class RelixCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        return run(scripts, output);
+        return run(scripts, inputs, output);
     }
 
     /**
      * Runs the scripts {@code scripts} names, with this invocation's global options.
      *
      * @param scripts where the scripts come from
+     * @param inputs  the data bound to relation names
      * @param output  where their rows go
      * @return the exit status
      */
-    int run(ScriptOptions scripts, OutputOptions output) {
+    int run(ScriptOptions scripts, InputOptions inputs, OutputOptions output) {
         Invocation invocation = new Invocation(host, options);
         OutputOptions.Output settled = output.settle(host);
-        return new ScriptRunner(invocation, settled, interruption)
-                .run(ScriptSource.resolve(scripts.expressions, scripts.files, host, invocation.directory()))
+        InputOptions.Inputs bound = inputs.settle(invocation.directory(), invocation.remote());
+        return new ScriptRunner(invocation, bound, settled, interruption)
+                .run(ScriptSource.resolve(scripts.expressions, scripts.files, host, invocation.directory(),
+                        bound.readStdin()))
                 .status();
     }
 
