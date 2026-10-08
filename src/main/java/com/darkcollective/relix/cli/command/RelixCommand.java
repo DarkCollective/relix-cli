@@ -16,6 +16,7 @@
 package com.darkcollective.relix.cli.command;
 
 import com.darkcollective.relix.cli.Main;
+import com.darkcollective.relix.cli.config.Relixrc;
 import com.darkcollective.relix.cli.io.Host;
 import com.darkcollective.relix.cli.io.Interruption;
 import com.darkcollective.relix.cli.io.ScriptSource;
@@ -96,7 +97,7 @@ public final class RelixCommand implements Callable<Integer> {
      */
     int run(ScriptOptions scripts, InputOptions inputs, OutputOptions output) {
         Invocation invocation = new Invocation(host, options);
-        OutputOptions.Output settled = output.settle(host);
+        OutputOptions.Output settled = output.settle(host, invocation.relixrc().get(Relixrc.OUTPUT));
         InputOptions.Inputs bound = inputs.settle(invocation.directory(), invocation.remote());
         return new ScriptRunner(invocation, bound, settled, interruption)
                 .run(ScriptSource.resolve(scripts.expressions, scripts.files, host, invocation.directory(),

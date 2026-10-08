@@ -17,11 +17,13 @@ package com.darkcollective.relix.cli.command;
 
 import com.darkcollective.relix.cli.CommandFailure;
 import com.darkcollective.relix.cli.ExitCode;
+import com.darkcollective.relix.cli.config.Relixrc;
 import com.darkcollective.relix.cli.io.Host;
 import com.darkcollective.relix.cli.render.OutputFormat;
 import picocli.CommandLine.Option;
 
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Where a run's rows go and in what shape (design §3.3, §3.4, §3.6): the format, its
@@ -35,8 +37,8 @@ final class OutputOptions {
 
     @Option(names = {"-o", "--output"}, paramLabel = "FORMAT",
             description = {
-                "The rows' format: table, tsv, csv, ndjson, json or markdown",
-                "(default: $RELIX_OUTPUT, else table on a terminal and tsv in a pipe)."})
+                "The rows' format: table, tsv, csv, ndjson, json or markdown (default:",
+                "$RELIX_OUTPUT, else relixrc's output, else table on a terminal and tsv in a pipe)."})
     String format;
 
     @Option(names = "--no-header",
@@ -78,13 +80,14 @@ final class OutputOptions {
     /**
      * The output these options and the host settle on.
      *
-     * @param host the process, for its environment and whether standard output is a terminal
+     * @param host     the process, for its environment and whether standard output is a terminal
+     * @param fallback the format a {@code relixrc} names, when one does
      * @return the settled output
      * @throws CommandFailure with {@link ExitCode#USAGE} for an unknown format or colour,
      *                        or options that cannot go together
      */
-    Output settle(Host host) {
-        OutputFormat chosen = format(host);
+    Output settle(Host host, Optional<String> fallback) {
+        OutputFormat chosen = format(host, fallback);
         boolean colored = switch (color.toLowerCase(Locale.ROOT)) {
             case "always" -> true;
             case "never" -> false;
@@ -108,12 +111,13 @@ final class OutputOptions {
                 lineBuffered, query, all || !chosen.isMachineFormat(), assertion);
     }
 
-    private OutputFormat format(Host host) {
+    private OutputFormat format(Host host, Optional<String> fallback) {
         if (format != null) {
             return format("-o", format);
         }
         return host.variable(OUTPUT_VARIABLE)
                 .map(name -> format("$" + OUTPUT_VARIABLE, name))
+                .or(() -> fallback.map(name -> format(Relixrc.FILE_NAME + " " + Relixrc.OUTPUT, name)))
                 .orElse(host.stdoutIsTerminal() ? OutputFormat.TABLE : OutputFormat.TSV);
     }
 

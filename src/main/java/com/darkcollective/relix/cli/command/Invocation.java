@@ -17,9 +17,11 @@ package com.darkcollective.relix.cli.command;
 
 import com.darkcollective.relix.cli.CommandFailure;
 import com.darkcollective.relix.cli.ExitCode;
+import com.darkcollective.relix.cli.catalog.Catalog;
 import com.darkcollective.relix.cli.config.Placeholders;
 import com.darkcollective.relix.cli.config.Profiles;
 import com.darkcollective.relix.cli.config.RelixDirectories;
+import com.darkcollective.relix.cli.config.Relixrc;
 import com.darkcollective.relix.cli.drivers.DownloadProgress;
 import com.darkcollective.relix.cli.io.FileSystemScriptLoader;
 import com.darkcollective.relix.cli.io.Host;
@@ -30,6 +32,7 @@ import com.darkcollective.relix.embed.Relix;
 import com.darkcollective.relix.embed.Sandbox;
 import com.darkcollective.relix.processor.connector.ConnectorProvisioner;
 
+import java.io.File;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -38,6 +41,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -48,17 +53,22 @@ import java.util.function.Function;
  *
  * <p>Everything that can be wrong with the options is found here, before any script is
  * read, so a bad {@code --now} or an unknown profile fails the run with a usage error
- * rather than part-way through.
+ * rather than part-way through. The catalog is read when a command first asks for it.
  */
 final class Invocation {
 
     static final String PROFILE_VARIABLE = "RELIX_PROFILE";
     static final String NOW_VARIABLE = "RELIX_NOW";
+    static final String CATALOG_PATH_VARIABLE = "RELIX_CATALOG_PATH";
 
     private final Host host;
     private final GlobalOptions options;
     private final Reporter reporter;
     private final Path directory;
+    private final List<Path> levels;
+    private final Relixrc relixrc;
+    private final List<Path> catalogFiles;
+    private Catalog catalog;
     private final Function<String, Optional<String>> placeholders;
     private final Clock clock;
     private final Sandbox sandbox;
@@ -73,10 +83,14 @@ final class Invocation {
         requirePositive("--max-materialized-rows", options.maxMaterializedRows);
         requirePositive("--max-processed-rows", options.maxProcessedRows);
         this.sandbox = options.sandbox == null ? null : sandbox(directory.resolve(options.sandbox));
-        String profile = options.profile != null ? options.profile : host.variable(PROFILE_VARIABLE).orElse(null);
+        this.levels = RelixDirectories.discover(directory, host.home());
+        this.relixrc = options.noCatalog ? Relixrc.none() : Relixrc.read(levels, reporter::warning);
+        this.catalogFiles = catalogFiles(host, options, directory);
+        String profile = options.profile != null ? options.profile
+                : host.variable(PROFILE_VARIABLE).or(() -> relixrc.get(Relixrc.PROFILE)).orElse(null);
         Map<String, String> values = profile == null
                 ? Map.of()
-                : Profiles.select(profile, RelixDirectories.discover(directory, host.home()));
+                : Profiles.select(profile, levels);
         this.placeholders = Placeholders.resolver(options.defines, values, host.environment());
     }
 
@@ -86,6 +100,30 @@ final class Invocation {
 
     Reporter reporter() {
         return reporter;
+    }
+
+    /** The defaults the {@code relixrc} files set; none with {@code -N}. */
+    Relixrc relixrc() {
+        return relixrc;
+    }
+
+    /**
+     * The catalog: the {@code .relix/} directories' files, unless {@code -N}, and then the
+     * {@code $RELIX_CATALOG_PATH} and {@code --catalog} files. Read on the first call.
+     *
+     * @return the catalog
+     */
+    Catalog catalog() {
+        if (catalog == null) {
+            List<Path> discovered = options.noCatalog ? List.of() : levels;
+            catalog = discovered.isEmpty() && catalogFiles.isEmpty()
+                    ? Catalog.empty()
+                    : Catalog.load(discovered, catalogFiles);
+            for (var file : catalog.files()) {
+                reporter.notice("catalog " + file.path());
+            }
+        }
+        return catalog;
     }
 
     /** Whether {@code --remote} permits http(s) locations. */
@@ -171,6 +209,33 @@ final class Invocation {
             throw new CommandFailure(ExitCode.USAGE, "-C " + options.directory + ": not a directory");
         }
         return dir;
+    }
+
+    /**
+     * The catalog files named outside the directory tree: {@code $RELIX_CATALOG_PATH}'s,
+     * then {@code --catalog}'s, the nearer last.
+     */
+    private static List<Path> catalogFiles(Host host, GlobalOptions options, Path directory) {
+        List<Path> files = new ArrayList<>();
+        host.variable(CATALOG_PATH_VARIABLE).ifPresent(path -> {
+            for (String entry : path.split(File.pathSeparator)) {
+                if (!entry.isBlank()) {
+                    files.add(catalogFile("$" + CATALOG_PATH_VARIABLE, directory, Path.of(entry.strip())));
+                }
+            }
+        });
+        for (Path file : options.catalogs) {
+            files.add(catalogFile("--catalog", directory, file));
+        }
+        return List.copyOf(files);
+    }
+
+    private static Path catalogFile(String from, Path directory, Path file) {
+        Path resolved = directory.resolve(file).normalize();
+        if (!Files.isRegularFile(resolved)) {
+            throw new CommandFailure(ExitCode.USAGE, from + ": " + file + ": no such file");
+        }
+        return resolved;
     }
 
     private static Clock clock(String instant) {
