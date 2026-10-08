@@ -1,0 +1,64 @@
+-- ─── Introspection ───────────────────────────────────────────────────────────
+-- relix describes itself.  The reserved `relix` namespace exposes read-only
+-- catalog relations you can query like any other relation (no new syntax):
+--
+--   relix.relations      every relation (name, kind, namespace, materialization)
+--   relix.columns        every column   (relation, column, type, ordinal)
+--   relix.functions      every function (name, category, arity, return_type, …)
+--   relix.dependencies   lineage edges  (dependent, depends_on)
+--   relix.plan           the logical expression tree, one row per IR node
+--                        (query, node_id, parent_id, ordinal, op, label, …)
+--
+-- Run:  relix --exec examples/introspection.relix
+-- See:  relix help catalog
+
+namespace shop;
+
+-- ─── A small schema to introspect ─────────────────────────────────────────────
+
+Customers := [| customer_id | name  | city   |
+              | 1           | Alice | London |
+              | 2           | Bob   | Leeds  |
+              | 3           | Carol | London |
+              ];
+
+Orders := [| order_id | customer_id | amount | status    |
+           | 1        | 1           |    120 | completed |
+           | 2        | 1           |     80 | completed |
+           | 3        | 2           |     50 | pending   |
+           | 4        | 3           |    200 | completed |
+           ];
+
+-- A little chain of views, so lineage has something to walk.
+Completed   := { σ status = "completed" (Orders) };
+PerCustomer := { γ customer_id, SUM(amount) → spent (Completed) };
+TopSpenders := { τ spent DESC (PerCustomer) };
+Report      := { π name, spent (TopSpenders ⋈ Customers) };
+
+-- ─── Introspection queries ────────────────────────────────────────────────────
+
+-- 1. The catalogue of relations in this script.
+query { τ kind, name (relix.relations) };
+
+-- 2. Every column of every relation — the information_schema.columns analogue.
+query { τ relation, ordinal (relix.columns) };
+
+-- 3. Which functions are safe to fold / cache (pure AND deterministic)?
+query { τ name (σ pure = "true" ∧ deterministic = "true" (relix.functions)) };
+
+-- 4. Direct lineage edges: which relation reads which.
+query { relix.dependencies };
+
+-- 5. Transitive lineage — everything `Report` (transitively) reads from.
+--    relix.dependencies holds the direct edges; CLOSURE makes them transitive
+--    (the recursive-CTE problem, in one line).
+Lineage := { CLOSURE dependent, depends_on (relix.dependencies) };
+query { π depends_on (σ dependent = "Report" (Lineage)) };
+
+-- 6. IR size per view — which queries are the most complex?
+--    relix.plan turns each view's expression tree into queryable rows.
+query { γ query, COUNT(node_id) → nodes (relix.plan) };
+
+-- 7. The expression tree of `Report`, in node order — the queryable form of the
+--    ASCII `:tree`.  parent_id wires each node to its parent (NULL at the root).
+query { τ node_id (π node_id, parent_id, op, label (σ query = "Report" (relix.plan))) };

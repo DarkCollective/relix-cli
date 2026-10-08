@@ -32,6 +32,9 @@ import java.nio.charset.StandardCharsets;
  */
 public final class Main {
 
+    /** {@code run}'s option whose file is attached with {@code =} only. */
+    private static final String TRACE = "--trace";
+
     private Main() {
     }
 
@@ -97,10 +100,32 @@ public final class Main {
                     err.flush();
                     return code.status();
                 });
-        int status = command.execute(args);
+        int status = command.execute(attachOptionalValues(args));
         out.flush();
         err.flush();
         return status;
+    }
+
+    /**
+     * The command line with a bare {@code --trace} given an empty value, so that the word
+     * after it is never taken for its file: {@code relix --trace q.relix} traces
+     * {@code q.relix}, and a file is named only as {@code --trace=FILE}. Nothing after
+     * {@code --} is touched.
+     *
+     * @param args the command line
+     * @return the command line to parse
+     */
+    static String[] attachOptionalValues(String[] args) {
+        String[] attached = args.clone();
+        for (int i = 0; i < attached.length; i++) {
+            if (attached[i].equals("--")) {
+                break;
+            }
+            if (attached[i].equals(TRACE)) {
+                attached[i] = TRACE + "=";
+            }
+        }
+        return attached;
     }
 
     /**

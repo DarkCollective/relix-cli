@@ -7,6 +7,8 @@ gradlew        text eol=lf
 *.bat          text eol=crlf
 *.cmd          text eol=crlf
 *.ps1          text eol=crlf
+# Relix scripts: the tests compare what fmt and optimize write with them byte for byte.
+*.relix        text eol=lf
 
 # Binary files.
 *.jar          binary

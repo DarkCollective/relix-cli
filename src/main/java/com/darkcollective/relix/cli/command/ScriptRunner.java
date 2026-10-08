@@ -21,37 +21,30 @@ import com.darkcollective.relix.cli.catalog.Declaration;
 import com.darkcollective.relix.cli.io.InputBinding;
 import com.darkcollective.relix.cli.io.Interruption;
 import com.darkcollective.relix.cli.io.Reporter;
-import com.darkcollective.relix.cli.io.RowSink;
 import com.darkcollective.relix.cli.io.ScriptSource;
 import com.darkcollective.relix.embed.Diagnostic;
 import com.darkcollective.relix.embed.Relation;
 import com.darkcollective.relix.embed.Relix;
 import com.darkcollective.relix.embed.RelixException;
-import com.darkcollective.relix.embed.Rows;
-import com.darkcollective.relix.embed.Tuple;
-import com.darkcollective.relix.events.QueryEvent;
 
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
-import java.util.stream.Stream;
 
 /**
- * Runs scripts, each in a session of its own, and writes their rows to standard output.
+ * Takes scripts through what every command that reads Relix does before it shows anything:
+ * each in a session of its own, with the catalog, then the inputs, then the script
+ * analysed. What is then shown of a script is a {@link View}'s: rows for {@code run}, a
+ * plan for {@code explain}, and so on.
  *
  * <p>Each session first defines the catalog (design §5), then declares the inputs
- * {@code -i} binds, then runs the script, so that each of these can replace a name the one
- * before it declared. An input that cannot be read fails the script as execution does.
+ * {@code -i} binds, then analyses the script, so that each of these can replace a name the
+ * one before it declared. An input that cannot be read fails the script as execution does.
  *
- * <p>A script is checked before it runs, and every diagnostic is reported, so a script
- * with three mistakes reports three; one with an error does not run. Each script is
- * independent: a failure in one does not stop the next, and the run exits with the first
- * failure's code.
- *
- * <p>A table or Markdown prints every query, each under its label. A machine format
- * prints one result set, because a CSV with two headers is not a CSV: the script's last
- * query, or the one {@code --query} names; {@code --all} with ndjson prints every one,
- * tagged. A query not printed is not run.
+ * <p>Every diagnostic is reported, so a script with three mistakes reports three; one with
+ * an error is not shown, unless the view shows broken scripts too, as the bundle does. Each
+ * script is independent: a failure in one does not stop the next, and the run exits with
+ * the first failure's code.
  *
  * <p>A script that fails for want of a name only an untrusted {@code .relix/} declares
  * exits 5, the environment's code, with the command that trusts it.
@@ -61,40 +54,127 @@ import java.util.stream.Stream;
  */
 final class ScriptRunner {
 
-    private static final String TRUNCATED = "TRUNCATED";
+    /** What a command shows of each script. */
+    interface View {
+
+        /**
+         * Shows one analysed script.
+         *
+         * @param script the script, its session and its diagnostics
+         * @return the script's exit code
+         */
+        ExitCode show(Script script);
+
+        /**
+         * Whether a script with errors is still shown. The script's exit code is then 3
+         * whatever {@link #show} returns.
+         *
+         * @return {@code true} for a view that describes a broken script too
+         */
+        default boolean showsBroken() {
+            return false;
+        }
+
+        /**
+         * Whether diagnostics are reported on standard error; not by a view that writes
+         * them to standard output itself.
+         *
+         * @return {@code true} to report them
+         */
+        default boolean reportsDiagnostics() {
+            return true;
+        }
+
+        /**
+         * Ends the run, once every script has been shown.
+         *
+         * @param result the exit code of the scripts, the first failure's
+         * @return the run's exit code
+         */
+        default ExitCode finish(ExitCode result) {
+            return result;
+        }
+    }
+
+    /**
+     * One script, analysed: its session holds the catalog and the inputs.
+     *
+     * @param source      where it came from
+     * @param session     its session
+     * @param diagnostics what analysing it found
+     */
+    record Script(ScriptSource source, Relix session, List<Diagnostic> diagnostics) {
+
+        /**
+         * Whether analysing it found an error.
+         *
+         * @return {@code true} when a diagnostic is an error
+         */
+        boolean broken() {
+            return diagnostics.stream().anyMatch(Diagnostic::isError);
+        }
+
+        /**
+         * Its queries, in order.
+         *
+         * @return one relation per {@code query} statement
+         */
+        List<Relation> queries() {
+            return session.script(source.text());
+        }
+
+        /**
+         * The queries a view shows: the one {@code --query} names, or every one.
+         *
+         * @param name the query to show, or {@code null} for all
+         * @return the queries
+         * @throws CommandFailure with {@link ExitCode#USAGE} when no query has that name
+         */
+        List<Relation> queries(String name) {
+            List<Relation> queries = queries();
+            if (name == null) {
+                return queries;
+            }
+            List<Relation> named = queries.stream()
+                    .filter(q -> q.label().filter(name::equals).isPresent())
+                    .toList();
+            if (named.isEmpty()) {
+                throw new CommandFailure(ExitCode.USAGE, source.name() + ": no query named '" + name + "'");
+            }
+            return named;
+        }
+    }
 
     private final Invocation invocation;
     private final InputOptions.Inputs inputs;
-    private final OutputOptions.Output output;
     private final Interruption interruption;
-    private final RowSink sink;
-    private long printed;
 
-    ScriptRunner(Invocation invocation, InputOptions.Inputs inputs, OutputOptions.Output output,
-                 Interruption interruption) {
+    ScriptRunner(Invocation invocation, InputOptions.Inputs inputs, Interruption interruption) {
         this.invocation = invocation;
         this.inputs = inputs;
-        this.output = output;
         this.interruption = interruption;
-        this.sink = new RowSink(invocation.host().out(), output.lineBuffered());
     }
 
-    ExitCode run(List<ScriptSource> sources) {
+    /**
+     * Shows every script through a view.
+     *
+     * @param sources the scripts, in order
+     * @param view    what to show of each
+     * @return the run's exit code
+     */
+    ExitCode run(List<ScriptSource> sources, View view) {
         invocation.loadInstalledDrivers();
         ExitCode result = ExitCode.SUCCESS;
         for (ScriptSource source : sources) {
-            ExitCode code = run(source);
+            ExitCode code = run(source, view);
             if (result == ExitCode.SUCCESS) {
                 result = code;
             }
         }
-        if (result == ExitCode.SUCCESS && output.assertion().failedBy(printed)) {
-            return ExitCode.ASSERTION;
-        }
-        return result;
+        return view.finish(result);
     }
 
-    private ExitCode run(ScriptSource source) {
+    private ExitCode run(ScriptSource source, View view) {
         Reporter reporter = invocation.reporter();
         try (Relix session = invocation.session(source.directory()).build()) {
             interruption.session(session);
@@ -107,28 +187,30 @@ final class ScriptRunner {
             long start = System.nanoTime();
             List<Diagnostic> diagnostics = session.validate(source.text());
             reporter.timing(source.name() + ": analysed", Duration.ofNanos(System.nanoTime() - start));
-            boolean errors = false;
-            for (Diagnostic diagnostic : diagnostics) {
-                reporter.diagnostic(source.place(diagnostic.location()), diagnostic);
-                errors |= diagnostic.isError();
+            if (view.reportsDiagnostics()) {
+                for (Diagnostic diagnostic : diagnostics) {
+                    reporter.diagnostic(source.place(diagnostic.location()), diagnostic);
+                }
             }
-            if (errors) {
-                return withheld(diagnostics) ? ExitCode.ENVIRONMENT : ExitCode.ANALYSIS;
+            Script script = new Script(source, session, diagnostics);
+            if (script.broken()) {
+                ExitCode code = withheld(diagnostics) ? ExitCode.ENVIRONMENT : ExitCode.ANALYSIS;
+                if (view.showsBroken()) {
+                    view.show(script);
+                }
+                return code;
             }
-            List<Relation> queries = chosen(session.script(source.text()));
-            if (queries == null) {
-                reporter.error(source.name() + ": no query named '" + output.query() + "'");
-                return ExitCode.USAGE;
-            }
-            for (Relation relation : queries) {
-                print(source, relation);
-            }
-            return ExitCode.SUCCESS;
+            return view.show(script);
         } catch (RuntimeException e) {
             // Closing the session under a running query fails it in whatever way it fails;
             // once interrupted, every such failure is the interrupt's.
             if (interruption.interrupted()) {
                 throw new CommandFailure(ExitCode.INTERRUPTED, null);
+            }
+            if (e instanceof CommandFailure failure && failure.exitCode() == ExitCode.USAGE
+                    && failure.getMessage() != null) {
+                reporter.error(failure.getMessage());
+                return ExitCode.USAGE;
             }
             if (e instanceof RelixException failure) {
                 reporter.error(source.name() + ": " + failure.getMessage());
@@ -198,55 +280,5 @@ final class ScriptRunner {
             }
         }
         return true;
-    }
-
-    /** The queries to print, in order, or {@code null} when the one named is not there. */
-    private List<Relation> chosen(List<Relation> queries) {
-        if (output.query() != null) {
-            List<Relation> named = queries.stream()
-                    .filter(q -> q.label().filter(output.query()::equals).isPresent())
-                    .toList();
-            return named.isEmpty() ? null : named;
-        }
-        if (output.every() || queries.isEmpty()) {
-            return queries;
-        }
-        return List.of(queries.getLast());
-    }
-
-    private void print(ScriptSource source, Relation relation) {
-        Reporter reporter = invocation.reporter();
-        long start = System.nanoTime();
-        String label = relation.label().orElse("");
-        var encoder = output.format().encoder(label, relation.schema(), output.options());
-        boolean truncated;
-        long count;
-        if (output.format().streams()) {
-            boolean[] cut = {false};
-            try (Stream<Tuple> rows = relation.stream(event -> cut[0] |= isTruncation(event))) {
-                interruption.stream(rows);
-                count = sink.write(rows, encoder);
-            } finally {
-                interruption.stream(null);
-            }
-            truncated = cut[0];
-        } else {
-            // A table aligns its columns over every row, so it collects them first, and a
-            // result that never ends is refused rather than collected forever.
-            Rows rows = relation.run();
-            count = sink.write(rows.rows().stream(), encoder);
-            truncated = rows.truncated();
-        }
-        printed += count;
-        if (truncated) {
-            reporter.error(source.name() + ": " + (label.isEmpty() ? "a query" : label)
-                    + ": the sandbox cut the result at " + count + " rows");
-        }
-        reporter.timing(source.name() + ": " + (label.isEmpty() ? "query" : label),
-                Duration.ofNanos(System.nanoTime() - start));
-    }
-
-    private static boolean isTruncation(QueryEvent event) {
-        return event.stage() == QueryEvent.Stage.EXECUTE && TRUNCATED.equals(event.code());
     }
 }
