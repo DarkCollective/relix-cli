@@ -15,6 +15,7 @@
  */
 package com.darkcollective.relix.cli.command;
 
+import com.darkcollective.relix.ast.Spelling;
 import com.darkcollective.relix.cli.CommandFailure;
 import com.darkcollective.relix.cli.ExitCode;
 import com.darkcollective.relix.cli.io.Reporter;
@@ -41,7 +42,7 @@ import java.util.concurrent.Callable;
 /**
  * {@code relix fmt}: prints scripts canonically (design §3), as {@code gofmt} does Go.
  *
- * <p>Each script is printed by the engine's statement printer, with its comments kept
+ * <p>Each script is printed by the engine's script printer, with its comments kept
  * (see {@link ScriptFormatter}). With no option the formatted scripts go to standard
  * output; {@code -w} rewrites each file that changes in place, and {@code --check} changes
  * nothing, names each file that would change, and exits 1 if any would, for CI.
@@ -97,8 +98,7 @@ final class FmtCommand implements Callable<Integer> {
             throw new CommandFailure(ExitCode.USAGE, "-w and --check cannot be given together");
         }
         Invocation invocation = root.invocation(false);
-        ScriptFormatter.Spelling chosen = spelling.keywords
-                ? ScriptFormatter.Spelling.KEYWORDS : ScriptFormatter.Spelling.GLYPHS;
+        Spelling chosen = spelling.keywords ? Spelling.KEYWORDS : Spelling.GLYPHS;
         List<ScriptSource> sources = sources(invocation);
         if (write && sources.stream().anyMatch(s -> s.name().equals(ScriptSource.STDIN))) {
             throw new CommandFailure(ExitCode.USAGE, "-w rewrites files; standard input has none to rewrite");
@@ -110,7 +110,7 @@ final class FmtCommand implements Callable<Integer> {
         for (ScriptSource source : sources) {
             String formatted;
             try {
-                formatted = ScriptFormatter.format(source.text(), chosen);
+                formatted = ScriptFormatter.format(source.text(), source.name(), chosen);
             } catch (ScriptParseException e) {
                 reporter.error(new Reporter.Place(source.name(), e.line(), e.column()) + ": error: "
                         + e.description());
