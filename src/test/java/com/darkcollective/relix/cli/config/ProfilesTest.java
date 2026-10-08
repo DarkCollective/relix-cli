@@ -63,8 +63,13 @@ class ProfilesTest {
         }
     }
 
+    /** The command in {@code work}, every directory trusted: trust has a test of its own below. */
     private Cli cli() {
-        return Cli.in(work).home(home);
+        return in(work);
+    }
+
+    private Cli in(Path dir) {
+        return Cli.in(dir).home(home).env("RELIX_TRUST_ALL", "1");
     }
 
     private void profiles(Path dir, String json) throws IOException {
@@ -171,8 +176,8 @@ class ProfilesTest {
             profiles(work, "{ \"dev\": { \"DATA\": \"three.csv\" } }");
             Files.writeString(project.resolve("one.csv"), "x\n1\n");
 
-            var fromProject = Cli.in(project).home(home).run("-P", "dev", "-e", SCRIPT);
-            var fromWork = Cli.in(project).home(home).run("-C", "work", "-P", "dev", "-e", SCRIPT);
+            var fromProject = in(project).run("-P", "dev", "-e", SCRIPT);
+            var fromWork = in(project).run("-C", "work", "-P", "dev", "-e", SCRIPT);
 
             assertThat(fromProject.status()).as("no profile above project").isEqualTo(2);
             assertThat(fromWork.out()).as(fromWork.toString()).contains("(3 rows)");
@@ -186,10 +191,26 @@ class ProfilesTest {
             profiles(elsewhere.resolve("a"), "{ \"dev\": { \"DATA\": \"one.csv\" } }");
             profiles(dir, "{ \"dev\": { \"DATA\": \"two.csv\" } }");
 
-            var result = Cli.in(dir).home(home).run("-P", "dev", "-e", SCRIPT);
+            var result = in(dir).run("-P", "dev", "-e", SCRIPT);
 
             assertThat(result.out()).as(result.toString()).contains("(2 rows)");
             assertThat(RelixDirectories.discover(dir, home)).containsExactly(dir.resolve(".relix"));
+        }
+
+        @Test
+        @DisplayName("a project's file is read only once the project is trusted")
+        void untrustedProject() throws IOException {
+            profiles(home, "{ \"dev\": { \"DATA\": \"four.csv\" } }");
+            profiles(project, "{ \"dev\": { \"DATA\": \"two.csv\" } }");
+
+            var untrusted = Cli.in(work).home(home).run("-P", "dev", "-e", SCRIPT);
+            var trust = Cli.in(work).home(home).run("catalog", "trust", project.toString());
+            var trusted = Cli.in(work).home(home).run("-P", "dev", "-e", SCRIPT);
+
+            assertThat(untrusted.out()).as(untrusted.toString()).contains("(4 rows)");
+            assertThat(untrusted.err()).contains("relix catalog trust " + project);
+            assertThat(trust.status()).as(trust.toString()).isZero();
+            assertThat(trusted.out()).as(trusted.toString()).contains("(2 rows)");
         }
     }
 

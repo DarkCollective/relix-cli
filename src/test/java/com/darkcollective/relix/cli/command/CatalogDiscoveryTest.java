@@ -71,9 +71,16 @@ class CatalogDiscoveryTest {
         return write(project.resolve(".relix/catalog").resolve(file), text);
     }
 
-    /** The command in {@code ~/work/acme/reports}, writing tsv. */
+    /**
+     * The command in {@code ~/work/acme/reports}, writing tsv, with every directory trusted:
+     * trust is {@link CatalogTrustTest}'s subject.
+     */
     private Cli cli() {
-        return Cli.in(reports).home(home).piped();
+        return in(reports);
+    }
+
+    private Cli in(Path dir) {
+        return Cli.in(dir).home(home).piped().env("RELIX_TRUST_ALL", "1");
     }
 
     @Nested
@@ -128,8 +135,8 @@ class CatalogDiscoveryTest {
             catalog(root.resolve("srv"), "srv.relix", table("Parent", "p"));
             catalog(elsewhere, "app.relix", table("App", "app"));
 
-            var own = Cli.in(elsewhere).home(home).piped().run("-e", "App");
-            var parent = Cli.in(elsewhere).home(home).piped().run("-e", "Parent");
+            var own = in(elsewhere).run("-e", "App");
+            var parent = in(elsewhere).run("-e", "Parent");
 
             assertThat(own.status()).as(own.toString()).isZero();
             assertThat(own.out()).isEqualTo("v\napp\n");
@@ -141,7 +148,7 @@ class CatalogDiscoveryTest {
         void minusC() throws IOException {
             catalog(acme, "acme.relix", table("A", "acme"));
 
-            var result = Cli.in(home).home(home).piped().run("-C", "work/acme", "-e", "A");
+            var result = in(home).run("-C", "work/acme", "-e", "A");
 
             assertThat(result.status()).as(result.toString()).isZero();
             assertThat(result.out()).isEqualTo("v\nacme\n");
@@ -197,7 +204,7 @@ class CatalogDiscoveryTest {
             catalog(reports, "sample.relix", "Orders := [\n| id | amount |\n|----|--------|\n| 7 | 700 |\n];\n");
 
             var inReports = cli().run("-e", "π id (Big)");
-            var inAcme = Cli.in(acme).home(home).piped().run("-e", "π id (Big)");
+            var inAcme = in(acme).run("-e", "π id (Big)");
 
             assertThat(inReports.status()).as(inReports.toString()).isZero();
             assertThat(inReports.out()).isEqualTo("id\n7\n");

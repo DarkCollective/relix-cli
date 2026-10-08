@@ -41,8 +41,11 @@ import java.util.Objects;
  * @param level      the {@code .relix/} directory it belongs to, or {@code null} for a
  *                   {@code --catalog} or {@code $RELIX_CATALOG_PATH} file
  * @param statements its statements, in order
+ * @param trusted    whether it is loaded: it is in {@code ~/.relix} or a trusted directory,
+ *                   or was named on the command line. An untrusted file is parsed, so that
+ *                   {@code relix catalog} can say what it declares, but never defined.
  */
-public record CatalogFile(Path path, Path level, List<Statement> statements) {
+public record CatalogFile(Path path, Path level, List<Statement> statements, boolean trusted) {
 
     /**
      * A catalog file, checked.
@@ -55,14 +58,16 @@ public record CatalogFile(Path path, Path level, List<Statement> statements) {
     /**
      * Reads and parses a catalog file.
      *
-     * @param path  the file, absolute
-     * @param level its {@code .relix/} directory, or {@code null}
-     * @return the parsed file
-     * @throws CommandFailure with {@link ExitCode#ANALYSIS} when it does not parse or holds
-     *                        a query, and with {@link ExitCode#ENVIRONMENT} when it cannot
+     * @param path    the file, absolute
+     * @param level   its {@code .relix/} directory, or {@code null}
+     * @param trusted whether it is to be loaded
+     * @return the parsed file; an untrusted file that does not parse is read as empty,
+     *         since nothing of it will be loaded
+     * @throws CommandFailure with {@link ExitCode#ANALYSIS} when a trusted file does not
+     *                        parse or holds a query, and with {@link ExitCode#ENVIRONMENT} when it cannot
      *                        be read
      */
-    static CatalogFile read(Path path, Path level) {
+    static CatalogFile read(Path path, Path level, boolean trusted) {
         String text;
         try {
             text = Files.readString(path, StandardCharsets.UTF_8);
@@ -73,15 +78,18 @@ public record CatalogFile(Path path, Path level, List<Statement> statements) {
         try {
             statements = Relix.parse(text, path.toString()).statements();
         } catch (ScriptParseException e) {
+            if (!trusted) {
+                return new CatalogFile(path, level, List.of(), false);
+            }
             throw new CommandFailure(ExitCode.ANALYSIS, path + ": " + e.getMessage());
         }
-        for (Statement statement : statements) {
+        for (Statement statement : trusted ? statements : List.<Statement>of()) {
             if (statement instanceof QueryStatement query) {
                 throw new CommandFailure(ExitCode.ANALYSIS, path + ":" + query.location().line()
                         + ": a catalog file declares; a query belongs in a script");
             }
         }
-        return new CatalogFile(path, level, statements);
+        return new CatalogFile(path, level, statements, trusted);
     }
 
     /**
