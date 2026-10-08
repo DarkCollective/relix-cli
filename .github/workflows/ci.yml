@@ -27,6 +27,11 @@ jobs:
           java-version: '21'
       # Also validates the checked-in wrapper jar against Gradle's published checksums.
       - uses: gradle/actions/setup-gradle@v6
+      # The completion scripts are syntax-checked by each shell that is installed; the
+      # runners have bash and PowerShell, and Linux gets zsh and fish here.
+      - name: Install zsh and fish
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y zsh fish
       - run: ./gradlew clean build
       - name: Upload test and coverage reports
         if: always()
