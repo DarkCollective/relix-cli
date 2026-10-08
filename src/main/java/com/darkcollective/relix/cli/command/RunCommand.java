@@ -39,10 +39,13 @@ final class RunCommand implements Callable<Integer> {
     ScriptOptions scripts;
 
     @Mixin
+    InputOptions inputs;
+
+    @Mixin
     OutputOptions output;
 
     @Override
     public Integer call() {
-        return parent.run(scripts, output);
+        return parent.run(scripts, inputs, output);
     }
 }

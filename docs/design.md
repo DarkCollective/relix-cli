@@ -119,6 +119,9 @@ The schema of a bound input is inferred (header for CSV/TSV, first N rows for
 JSON/NDJSON — `--infer-rows=N`), or given explicitly with `--schema NAME='{ id: NUMBER, … }'`.
 Inference and stream reading are API request **R1** (§9).
 
+An input that never ends, such as `tail -f`'s, is declared with `--unbounded=NAME`: its rows
+stream as they arrive, and a query that would have to read all of it first is refused.
+
 ### 3.3 Where data goes: output formats
 
 `-o FORMAT` / `--output=FORMAT`, or `RELIX_OUTPUT`:
