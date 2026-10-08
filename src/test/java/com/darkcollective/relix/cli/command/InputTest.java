@@ -16,7 +16,6 @@
 package com.darkcollective.relix.cli.command;
 
 import com.darkcollective.relix.cli.Cli;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -292,16 +291,18 @@ class InputTest {
     @DisplayName("an unbounded input")
     class Unbounded {
 
-        @Test
-        @Disabled("the engine's plan-time check refuses a blocking operator over an unbounded "
-                + "generator, but not yet over an unbounded Relix.input")
+        @ParameterizedTest(name = "{0}")
+        @CsvSource(delimiter = ';', value = {
+            "τ id (r)",
+            "γ customer, COUNT(id) → n (r)"})
         @DisplayName("a blocking operator over it is refused before it starts")
-        void blockingRefused() {
+        void blockingRefused(String query) {
             var result = Cli.in(dir).piped().stdin(NDJSON)
-                    .run("-i", "r=ndjson:-", "--unbounded=r", "--infer-rows=1", "-e", "τ id (r)");
+                    .run("-i", "r=ndjson:-", "--unbounded=r", "--infer-rows=1", "-e", query);
 
             assertThat(result.status()).as(result.toString()).isEqualTo(3);
             assertThat(result.out()).isEmpty();
+            assertThat(result.err()).as(result.toString()).contains("unbounded");
         }
 
         @Test
