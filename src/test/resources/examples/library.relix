@@ -1,0 +1,99 @@
+-- ─── Library ────────────────────────────────────────────────────────────────
+-- A small book-lending library.  All data is inline — no external sources.
+-- Run:  relix --exec examples/library.relix
+
+namespace library;
+
+-- ─── Catalogue ───────────────────────────────────────────────────────────────
+
+Books := [| book_id | title                    | author             | genre    | year | pages |
+           | 1       | Dune                     | Frank Herbert      | sci-fi   | 1965 |   688 |
+           | 2       | Foundation               | Isaac Asimov       | sci-fi   | 1951 |   244 |
+           | 3       | Neuromancer              | William Gibson     | sci-fi   | 1984 |   271 |
+           | 4       | Shogun                   | James Clavell      | fiction  | 1975 |  1210 |
+           | 5       | The Name of the Rose     | Umberto Eco        | mystery  | 1980 |   502 |
+           | 6       | Hyperion                 | Dan Simmons        | sci-fi   | 1989 |   482 |
+           | 7       | Foucault's Pendulum      | Umberto Eco        | fiction  | 1988 |   641 |
+           | 8       | The Left Hand of Darkness| Ursula K. Le Guin  | sci-fi   | 1969 |   286 |
+           | 9       | Snow Crash               | Neal Stephenson    | sci-fi   | 1992 |   440 |
+           ];
+
+Members := [| member_id | name    | city       | joined |
+             | 1         | Alice   | London     |   2019 |
+             | 2         | Bob     | Manchester |   2020 |
+             | 3         | Carol   | London     |   2021 |
+             | 4         | Dave    | Bristol    |   2020 |
+             | 5         | Eve     | London     |   2022 |
+             ];
+
+-- Each loan records who borrowed which book; status: "out" or "returned"
+Loans := [| loan_id | book_id | member_id | status   |
+           | 1       | 1       | 1         | returned |
+           | 2       | 2       | 1         | out      |
+           | 3       | 3       | 2         | returned |
+           | 4       | 1       | 3         | out      |
+           | 5       | 4       | 2         | returned |
+           | 6       | 5       | 4         | returned |
+           | 7       | 6       | 3         | returned |
+           | 8       | 2       | 5         | out      |
+           | 9       | 7       | 1         | returned |
+           | 10      | 8       | 4         | out      |
+           ];
+
+-- ─── Queries ─────────────────────────────────────────────────────────────────
+
+-- Books currently on loan (not yet returned)
+OnLoan := { σ status = "out" (Loans) };
+
+-- Full details of overdue books with borrower names
+OnLoanDetails := {
+    π title, name, city (
+        (OnLoan ⋈ Books) ⋈ Members
+    )
+};
+
+-- Books that have never been borrowed (anti-join).
+-- Book 9 is in the catalogue but in no loan, so it is the one row this returns —
+-- an anti-join that always came back empty would demonstrate nothing.
+NeverBorrowed := { Books ▷ Books.book_id = Loans.book_id Loans };
+
+-- Prolific readers: members who have borrowed more than once
+LoanCounts := { γ member_id, COUNT(loan_id) → times_borrowed (Loans) };
+ProlificReaders := {
+    π name, times_borrowed (
+        σ times_borrowed > 1 (LoanCounts ⋈ Members)
+    )
+};
+
+-- Sci-fi books sorted by year, most recent first
+SciFiByYear := {
+    τ year DESC (
+        σ genre = "sci-fi" (Books)
+    )
+};
+
+-- Pages per genre — genres with their total and average page counts
+GenreStats := {
+    γ genre, COUNT(book_id) → book_count, SUM(pages) → total_pages (Books)
+};
+
+-- Authors with multiple books in the catalogue
+AuthorTally := { γ author, COUNT(book_id) → books_in_catalogue (Books) };
+ProlificAuthors := { σ books_in_catalogue > 1 (AuthorTally) };
+
+-- London members who currently have a book out (semi-join).
+-- The condition names the two sides of *this* join — the left is the filtered
+-- Members, not the Loans the right side was derived from.
+LondonBorrowers := {
+    σ city = "London" (Members) ⋉
+        Members.member_id = OnLoan.member_id
+    OnLoan
+};
+
+query OnLoanDetails;
+query NeverBorrowed;
+query ProlificReaders;
+query SciFiByYear;
+query GenreStats;
+query ProlificAuthors;
+query LondonBorrowers;
