@@ -1,0 +1,242 @@
+-- ─── Pokémon: evolution graphs and a salary-capped draft ─────────────────────
+-- Live data from PokeAPI (https://pokeapi.co): public, no key, read-only.
+-- Run:  relix --exec examples/pokemon.relix
+--
+-- Two halves:
+--   1. Evolution as a graph: flatten PokeAPI's recursive evolution chains
+--      into an edge list, then ask CLOSURE and PATH the fun questions.
+--   2. Team building: draft six Pokémon with OPTIMIZE under a salary cap,
+--      then plan practice battles with COVER.
+--
+-- Every source is one GET per run. PokeAPI is a free community service, so
+-- be kind to it: run this now and then rather than in a tight loop.
+
+namespace pokemon;
+
+-- ═══ 1. Evolution as a graph ═════════════════════════════════════════════════
+
+-- An evolution chain is a recursive document:
+--
+--   { "chain": { "species":    { "name": "bulbasaur" },
+--                "evolves_to": [ { "species": { "name": "ivysaur" },
+--                                  "evolution_details": [ { "trigger": { "name": "level-up" },
+--                                                           "min_level": 16, "item": null, … } ],
+--                                  "evolves_to": [ { … venusaur … } ] } ] } }
+--
+-- extract: json("$.chain") makes the root of each chain the single row, and
+-- evolves_to stays an ANY column: a nested array we unnest with μ.
+-- (Chain ids come from /pokemon-species/<name> → evolution_chain.url.)
+
+source BulbasaurChain from http {
+    url: "https://pokeapi.co/api/v2/evolution-chain/1", extract: json("$.chain"),
+    schema: { species: STRING at "$.species.name", evolves_to: ANY } };
+source CharmanderChain from http {
+    url: "https://pokeapi.co/api/v2/evolution-chain/2", extract: json("$.chain"),
+    schema: { species: STRING at "$.species.name", evolves_to: ANY } };
+source SquirtleChain from http {
+    url: "https://pokeapi.co/api/v2/evolution-chain/3", extract: json("$.chain"),
+    schema: { species: STRING at "$.species.name", evolves_to: ANY } };
+source PichuChain from http {
+    url: "https://pokeapi.co/api/v2/evolution-chain/10", extract: json("$.chain"),
+    schema: { species: STRING at "$.species.name", evolves_to: ANY } };
+source EeveeChain from http {
+    url: "https://pokeapi.co/api/v2/evolution-chain/67", extract: json("$.chain"),
+    schema: { species: STRING at "$.species.name", evolves_to: ANY } };
+
+Chains := { BulbasaurChain ⊎ CharmanderChain ⊎ SquirtleChain ⊎ PichuChain ⊎ EeveeChain };
+
+-- ─── Flatten the tree, one level at a time ──────────────────────────────────
+
+-- Stage 2: one row per child of a chain's root (Eevee alone has eight).
+StageTwo := {
+    π species,
+      evolves_to.species.name     → evolves_into,
+      evolves_to.evolution_details → how,
+      evolves_to.evolves_to        → later
+    (μ evolves_to (Chains))
+};
+
+-- Stage 3: one row per grandchild (Ivysaur → Venusaur, Pikachu → Raichu, …).
+StageThree := {
+    π evolves_into              → species,
+      later.species.name        → evolves_into,
+      later.evolution_details   → how,
+      later.evolves_to          → later
+    (μ later (StageTwo))
+};
+
+Evolutions := { StageTwo ⊎ StageThree };
+
+-- The edge list every graph operator below reads.
+Evolves := { δ (π species, evolves_into (Evolutions)) };
+
+-- One row per *way* to evolve. evolution_details is an array because some
+-- evolutions have several (Leafeon: a Moss Rock or a Leaf Stone, by game).
+Methods := {
+    π species, evolves_into,
+      how.trigger.name  → trigger,
+      how.min_level     → min_level,
+      how.item.name     → item,
+      how.min_happiness → min_happiness,
+      how.time_of_day   → time_of_day
+    (μ how (Evolutions))
+};
+
+-- ─── Questions ──────────────────────────────────────────────────────────────
+
+-- Eevee's options: which stone, which friendship level, which time of day.
+EeveeOptions := { τ evolves_into (σ species = "eevee" (Methods)) };
+
+-- The stone shop: every evolution item, and what each one unlocks.
+StoneShop := {
+    τ evolutions DESC (
+        γ item, COUNT(*) → evolutions, COLLECT(evolves_into) → unlocks
+        (σ item IS NOT NULL (Methods)))
+};
+
+-- Everything a Pokémon can *eventually* become, however many steps away.
+EventuallyBecomes := { CLOSURE species, evolves_into (Evolves) };
+PichuFuture       := { σ species = "pichu" (EventuallyBecomes) };
+
+-- The same question with a distance: how many evolutions to get there?
+StepsAway := { τ steps DESC, species (PATH species, evolves_into HOPS 1 TO 2 AS steps (Evolves)) };
+
+-- Final forms: they evolve from something and into nothing.
+FinalForms := { τ evolves_into (π evolves_into (Evolves) − π species (Evolves)) };
+
+-- Families: read the edges both ways (↔) and everyone in a chain is
+-- connected to everyone else. Jolteon's relatives are the whole Eeveelution
+-- family: Eevee, all eight evolutions, and Jolteon itself (there and back
+-- again is a path too).
+Relatives       := { CLOSURE species ↔ evolves_into (Evolves) };
+JolteonsFamily  := { τ evolves_into (σ species = "jolteon" (Relatives)) };
+
+query EeveeOptions;
+query StoneShop;
+query PichuFuture;
+query StepsAway;
+query FinalForms;
+query JolteonsFamily;
+
+-- ═══ 2. Team building ════════════════════════════════════════════════════════
+
+-- The candidates. A Pokémon's base_experience (what you earn for defeating
+-- it) doubles as its "salary": strong Pokémon are expensive. stats is an
+-- array of six { "base_stat": 35, "stat": { "name": "hp" } } entries;
+-- types holds one or two { "slot": 1, "type": { "name": "electric" } }.
+
+source Pikachu from http { url: "https://pokeapi.co/api/v2/pokemon/pikachu",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+source Charizard from http { url: "https://pokeapi.co/api/v2/pokemon/charizard",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+source Blastoise from http { url: "https://pokeapi.co/api/v2/pokemon/blastoise",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+source Venusaur from http { url: "https://pokeapi.co/api/v2/pokemon/venusaur",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+source Gengar from http { url: "https://pokeapi.co/api/v2/pokemon/gengar",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+source Snorlax from http { url: "https://pokeapi.co/api/v2/pokemon/snorlax",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+source Dragonite from http { url: "https://pokeapi.co/api/v2/pokemon/dragonite",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+source Mewtwo from http { url: "https://pokeapi.co/api/v2/pokemon/mewtwo",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+source Gyarados from http { url: "https://pokeapi.co/api/v2/pokemon/gyarados",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+source Alakazam from http { url: "https://pokeapi.co/api/v2/pokemon/alakazam",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+source Machamp from http { url: "https://pokeapi.co/api/v2/pokemon/machamp",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+source Lapras from http { url: "https://pokeapi.co/api/v2/pokemon/lapras",
+    schema: { name: STRING, cost: NUMBER at "$.base_experience", stats: ANY,
+              type1: STRING at "$.types[0].type.name", type2: STRING at "$.types[1].type.name" } };
+
+Candidates := {
+    Pikachu ⊎ Charizard ⊎ Blastoise ⊎ Venusaur ⊎ Gengar ⊎ Snorlax
+  ⊎ Dragonite ⊎ Mewtwo ⊎ Gyarados ⊎ Alakazam ⊎ Machamp ⊎ Lapras
+};
+
+-- ─── Scouting report ────────────────────────────────────────────────────────
+
+-- One row per (Pokémon, stat).
+StatLines := { π name, stats.stat.name → stat, stats.base_stat → base (μ stats (Candidates)) };
+
+-- Base-stat total, the usual one-number summary of a Pokémon.
+Totals := { γ name, SUM(base) → bst (StatLines) };
+
+Roster := { τ bst DESC ((π name, cost, type1, type2 (Candidates)) ⋈ Totals) };
+
+-- Who leads the pool in each stat? ARGMAX(rank, yield) names the row with the
+-- highest rank, with no self-join needed.
+StatLeaders := { γ stat, MAX(base) → best, ARGMAX(base, name) → leader (StatLines) };
+
+query Roster;
+query StatLeaders;
+
+-- ─── The draft: six Pokémon under a salary cap ──────────────────────────────
+
+-- Take the most total stats, with exactly six picks and at most 1400 in
+-- salaries. Without the cap it is simply the six highest totals. With it,
+-- Mewtwo, the most expensive, has to be worth whoever it pushes out.
+Draft := {
+    OPTIMIZE MAXIMIZE SUM(bst)
+      SUBJECT TO SUM(1) = 6 AND SUM(cost) <= 1400
+    (Roster)
+};
+DraftedTeam := { τ bst DESC (Draft) };
+
+query DraftedTeam;
+
+-- Which battle types does the drafted team have no same-type attack for?
+-- The type index lists 'stellar' and 'unknown' too, which are not battle types.
+source TypeIndex from http {
+    url:     "https://pokeapi.co/api/v2/type?limit=100",
+    extract: json("$.results[*]"),
+    schema:  { type_name: STRING at "$.name" }
+};
+
+BattleTypes := { σ type_name NOT IN {"stellar", "unknown"} (TypeIndex) };
+TeamTypes   := { π type1 (Draft) ∪ π type2 (σ type2 IS NOT NULL (Draft)) };
+Gaps        := { τ type_name (BattleTypes − TeamTypes) };
+
+query Gaps;
+
+-- ─── Practice schedule ──────────────────────────────────────────────────────
+
+-- Every lead × weather × terrain combination is 6 × 4 × 4 = 96 practice
+-- battles. COVER 2 keeps only enough of them that every *pair* still meets
+-- at least once: each lead in every weather, each lead on every terrain,
+-- and every weather on every terrain.
+Weather := [
+| weather   |
+|-----------|
+| sun       |
+| rain      |
+| sandstorm |
+| snow      |
+];
+
+Terrain := [
+| terrain  |
+|----------|
+| electric |
+| grassy   |
+| misty    |
+| psychic  |
+];
+
+Leads    := { π name → lead (Draft) };
+Sparring := { τ lead, weather (COVER 2 (Leads × Weather × Terrain)) };
+
+query Sparring;

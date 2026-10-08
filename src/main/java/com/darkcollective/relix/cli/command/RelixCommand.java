@@ -20,10 +20,12 @@ import com.darkcollective.relix.cli.config.Relixrc;
 import com.darkcollective.relix.cli.io.Host;
 import com.darkcollective.relix.cli.io.Interruption;
 import com.darkcollective.relix.cli.io.ScriptSource;
+import com.darkcollective.relix.cli.report.EventFeed;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.IVersionProvider;
 import picocli.CommandLine.Mixin;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 
@@ -42,7 +44,10 @@ import java.util.concurrent.Callable;
             "Runs Relix relational-algebra scripts as a stage of a Unix pipeline.",
             "Rows go to standard output; everything else goes to standard error.",
             ""},
-        subcommands = {RunCommand.class, CatalogCommand.class},
+        subcommands = {
+            RunCommand.class, CheckCommand.class, ExplainCommand.class, OptimizeCommand.class,
+            TraceCommand.class, BundleCommand.class, IrCommand.class, ProvenanceCommand.class,
+            CatalogCommand.class},
         exitCodeListHeading = "%nExit status:%n",
         exitCodeList = {
             " 0:success",
@@ -68,6 +73,9 @@ public final class RelixCommand implements Callable<Integer> {
     @Mixin
     OutputOptions output;
 
+    @Mixin
+    TraceOption trace;
+
     private final Host host;
     private final Interruption interruption;
 
@@ -84,7 +92,7 @@ public final class RelixCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        return run(scripts, inputs, output);
+        return run(scripts, inputs, output, trace);
     }
 
     /**
@@ -93,16 +101,53 @@ public final class RelixCommand implements Callable<Integer> {
      * @param scripts where the scripts come from
      * @param inputs  the data bound to relation names
      * @param output  where their rows go
+     * @param trace   where their event feed goes
      * @return the exit status
      */
-    int run(ScriptOptions scripts, InputOptions inputs, OutputOptions output) {
+    int run(ScriptOptions scripts, InputOptions inputs, OutputOptions output, TraceOption trace) {
         Invocation invocation = invocation(true);
         OutputOptions.Output settled = output.settle(host, invocation.relixrc().get(Relixrc.OUTPUT));
         InputOptions.Inputs bound = inputs.settle(invocation.directory(), invocation.remote());
-        return new ScriptRunner(invocation, bound, settled, interruption)
-                .run(ScriptSource.resolve(scripts.expressions, scripts.files, host, invocation.directory(),
-                        bound.readStdin()))
-                .status();
+        List<ScriptSource> sources = sources(invocation, scripts, bound);
+        try (EventFeed feed = trace.open(host, invocation.directory())) {
+            return runner(invocation, bound)
+                    .run(sources, new ResultRows(invocation, settled, interruption, feed))
+                    .status();
+        }
+    }
+
+    /**
+     * The scripts a command reads.
+     *
+     * @param invocation the run
+     * @param scripts    where they come from
+     * @param inputs     the data bound to relation names, which may take standard input
+     * @return the scripts, in order
+     */
+    List<ScriptSource> sources(Invocation invocation, ScriptOptions scripts, InputOptions.Inputs inputs) {
+        return ScriptSource.resolve(scripts.expressions, scripts.files, host, invocation.directory(),
+                inputs.readStdin());
+    }
+
+    /**
+     * What takes a command's scripts through the catalog, the inputs and analysis.
+     *
+     * @param invocation the run
+     * @param inputs     the data bound to relation names
+     * @return the runner
+     */
+    ScriptRunner runner(Invocation invocation, InputOptions.Inputs inputs) {
+        return new ScriptRunner(invocation, inputs, interruption);
+    }
+
+    /** The process the command runs in. */
+    Host host() {
+        return host;
+    }
+
+    /** What an interrupt stops. */
+    Interruption interruption() {
+        return interruption;
     }
 
     /**
