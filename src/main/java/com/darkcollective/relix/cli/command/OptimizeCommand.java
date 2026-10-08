@@ -17,14 +17,11 @@ package com.darkcollective.relix.cli.command;
 
 import com.darkcollective.relix.cli.CommandFailure;
 import com.darkcollective.relix.cli.ExitCode;
-import com.darkcollective.relix.cli.io.Reporter;
 import com.darkcollective.relix.cli.io.RowSink;
 import com.darkcollective.relix.cli.io.ScriptText;
 import com.darkcollective.relix.cli.report.OptimizationReport;
 import com.darkcollective.relix.embed.Relation;
-import com.darkcollective.relix.embed.Relix;
 import com.darkcollective.relix.lang.ast.QueryStatement;
-import com.darkcollective.relix.lang.ast.ScriptParseException;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -38,9 +35,9 @@ import java.util.List;
  *
  * <p>Only the {@code query} statements change, each to {@code query { … };} around its
  * rewritten expression, in which the views it reads are inlined. Every other statement,
- * and every comment, is left as written. A rewrite the engine cannot write back as text
- * that parses is not printed: that query is left as written too, with a warning, so the
- * output is always a script that runs. With {@code --report}, what is printed instead is
+ * and every comment, is left as written. The engine writes every rewrite back as Relix
+ * that parses (DarkCollective/relix-core#100), so the output is a script that runs. With
+ * {@code --report}, what is printed instead is
  * which rules fired, and each query before and after.
  */
 @Command(name = "optimize",
@@ -65,7 +62,7 @@ final class OptimizeCommand extends ScriptCommand {
                 out.text(OptimizationReport.generate(queries.isEmpty()
                         ? script.session().model() : queries.getFirst().model(), entries(queries)));
             } else {
-                out.text(rewritten(script, queries, invocation.reporter()));
+                out.text(rewritten(script, queries));
             }
             return ExitCode.SUCCESS;
         };
@@ -83,7 +80,7 @@ final class OptimizeCommand extends ScriptCommand {
     }
 
     /** The text with each query statement replaced by its rewritten query, in order. */
-    private static String rewritten(ScriptRunner.Script script, List<Relation> queries, Reporter reporter) {
+    private static String rewritten(ScriptRunner.Script script, List<Relation> queries) {
         String text = script.source().text();
         List<ScriptText.Piece> statements = ScriptText.of(text).statements().stream()
                 .filter(piece -> piece.statement() instanceof QueryStatement)
@@ -96,28 +93,12 @@ final class OptimizeCommand extends ScriptCommand {
         int at = 0;
         for (int i = 0; i < statements.size(); i++) {
             ScriptText.Span span = statements.get(i).span();
-            Relation query = queries.get(i);
-            String rewritten = "query { " + query.optimized().render() + " };";
             out.append(text, at, span.start());
-            if (parses(rewritten)) {
-                out.append(rewritten);
-            } else {
-                reporter.warning(script.source().name() + ": " + query.label().orElse("a query")
-                        + ": the engine cannot write its rewrite as Relix that parses; left as written");
-                out.append(span.of(text));
-            }
+            out.append("query { ").append(queries.get(i).optimized().render()).append(" };");
             at = span.end();
         }
         out.append(text, at, text.length());
         return out.toString();
     }
 
-    private static boolean parses(String statement) {
-        try {
-            Relix.parse(statement);
-            return true;
-        } catch (ScriptParseException e) {
-            return false;
-        }
-    }
 }
