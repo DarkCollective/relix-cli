@@ -151,6 +151,17 @@ final class Invocation {
         return catalog;
     }
 
+    /**
+     * The format a command's rows are written in: its options, else {@code $RELIX_OUTPUT},
+     * else {@code relixrc}'s, else the terminal's.
+     *
+     * @param formatting the command's format options
+     * @return the format, settled
+     */
+    FormatOptions.Format format(FormatOptions formatting) {
+        return formatting.settle(host, relixrc.get(Relixrc.OUTPUT));
+    }
+
     /** What the user trusts. */
     Trust trust() {
         return trust;
