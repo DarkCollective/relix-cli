@@ -64,7 +64,7 @@ class ManagementCommandsTest {
             var result = cli().run("version");
 
             assertThat(result.status()).isZero();
-            assertThat(result.out()).matches("relix \\S+ \\(engine \\S+\\)\\n").isEqualTo(cli().run("--version").out());
+            assertThat(result.out()).matches("relix \\S+ \\(engine \\S+\\)\\R").isEqualTo(cli().run("--version").out());
         }
     }
 

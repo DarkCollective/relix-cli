@@ -16,16 +16,17 @@
 package com.darkcollective.relix.cli.command;
 
 import com.darkcollective.relix.cli.ExitCode;
-import com.darkcollective.relix.cli.Main;
-import com.darkcollective.relix.cli.io.RowSink;
+import picocli.CommandLine;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.ParentCommand;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Spec;
 
 import java.util.concurrent.Callable;
 
 /**
- * {@code relix version}: the command's version and the engine's, as {@code relix --version}
- * prints them.
+ * {@code relix version}: the command's version and the engine's, printed by the same
+ * version help as {@code relix --version}, so the two are the same text, line ending
+ * included.
  */
 @Command(name = "version",
         mixinStandardHelpOptions = true,
@@ -33,12 +34,13 @@ import java.util.concurrent.Callable;
         description = "Prints the versions of relix and of the Relix engine it runs.")
 final class VersionCommand implements Callable<Integer> {
 
-    @ParentCommand
-    RelixCommand root;
+    @Spec
+    CommandSpec spec;
 
     @Override
     public Integer call() {
-        new RowSink(root.host().out(), false).text(Main.versionLine() + "\n");
+        CommandLine root = spec.root().commandLine();
+        root.printVersionHelp(root.getOut());
         return ExitCode.SUCCESS.status();
     }
 }
