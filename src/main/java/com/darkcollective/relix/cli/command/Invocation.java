@@ -210,6 +210,8 @@ final class Invocation {
                 // script still runs: a command line over someone else's database must.
                 .allowUnresolved()
                 .placeholders(placeholders)
+                // Text, which the engine reads as the type each parameter was analysed to.
+                .parameters(options.arguments)
                 .remoteFiles(options.remote);
         if (clock != null) {
             builder.clock(clock);

@@ -47,6 +47,12 @@ final class GlobalOptions {
                 "Not for secrets: it lands in shell history and ps."})
     Map<String, String> defines = new LinkedHashMap<>();
 
+    @Option(names = {"-a", "--arg"}, paramLabel = "NAME=VALUE", scope = ScopeType.INHERIT,
+            description = {
+                "Bind the query parameter $$NAME to VALUE. Repeatable.",
+                "The value is bound, never pasted into the script, so it cannot change the query."})
+    Map<String, String> arguments = new LinkedHashMap<>();
+
     @Option(names = {"-N", "--no-catalog"}, scope = ScopeType.INHERIT,
             description = "Ignore the .relix/ directories' catalogs and relixrc; --catalog files still load.")
     boolean noCatalog;
