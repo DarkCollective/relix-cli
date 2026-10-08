@@ -83,6 +83,17 @@ public final class Reporter {
     }
 
     /**
+     * Prints a warning that has no place in a script, unless warnings are silenced.
+     *
+     * @param message what is amiss
+     */
+    public void warning(String message) {
+        if (verbosity != Verbosity.QUIET) {
+            err.print("relix: warning: " + message + "\n");
+        }
+    }
+
+    /**
      * Prints a notice when {@code -v} is given.
      *
      * @param message what the command did
