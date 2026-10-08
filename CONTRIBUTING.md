@@ -133,6 +133,11 @@ together with the engine-internal module it implements, so the runtime class pat
 holds some engine classes twice. That does no harm on a class path, but do not judge
 a module-path launch by it.
 
+The checkout's build runs under this repository's Gradle, so it needs a relix-core
+that builds on Gradle 9. An older one fails while configuring, in a plugin that
+Gradle 9 broke (for example `info.solidsoft.pitest`, which reports an unknown
+property `baseDir`).
+
 ## Branches and commits
 
 Work on a branch named with a prefix — `feat/`, `fix/`, `docs/`, `chore/` or
