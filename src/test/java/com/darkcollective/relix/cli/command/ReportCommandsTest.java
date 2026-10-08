@@ -94,14 +94,11 @@ class ReportCommandsTest {
         @DisplayName("writes its report of each example to stdout, and nothing to stderr")
         void overTheExamples(String command) {
             for (String example : EXAMPLES) {
-                // optimize warns about the rewrites the engine cannot write back.
                 var result = cli().piped().run(command, example);
 
                 assertThat(result.status()).as(example + "\n" + result).isZero();
                 assertThat(result.out()).as(example).isNotBlank();
-                if (!command.equals("optimize")) {
-                    assertThat(result.err()).as(example).isEmpty();
-                }
+                assertThat(result.err()).as(example).isEmpty();
             }
         }
 
@@ -274,15 +271,17 @@ class ReportCommandsTest {
         }
 
         @Test
-        @DisplayName("leaves a query as written, with a warning, when the engine cannot write its rewrite back")
-        void unwritable() {
-            // The selection is pushed into the closure as its seed, which render() writes in
-            // a spelling the parser does not have (DarkCollective/relix-core#100).
+        @DisplayName("writes back a rewrite that seeds a closure, as a script that runs")
+        void seededClosure() throws IOException {
+            // The selection is pushed into the closure as its seed, which render() writes
+            // back as a selection over the closure (DarkCollective/relix-core#100).
             var result = cli().run("optimize", "introspection.relix");
+            Files.writeString(dir.resolve("optimized.relix"), result.out(), StandardCharsets.UTF_8);
 
-            assertThat(result.status()).isZero();
-            assertThat(result.err()).contains("introspection.relix: <expression 5>: the engine cannot write its rewrite");
-            assertThat(result.out()).contains("query { π depends_on (σ dependent = \"Report\" (Lineage)) };");
+            assertThat(result.status()).as(result.toString()).isZero();
+            assertThat(result.err()).isEmpty();
+            assertThat(result.out()).doesNotContain("query { π depends_on (σ dependent = \"Report\" (Lineage)) };");
+            assertThat(cli().run("check", "optimized.relix").status()).isZero();
         }
 
         @Test
