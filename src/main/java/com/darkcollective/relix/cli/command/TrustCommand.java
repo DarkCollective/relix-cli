@@ -28,7 +28,6 @@ import picocli.CommandLine.ParentCommand;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 
 /**
@@ -77,7 +76,7 @@ final class TrustCommand implements Callable<Integer> {
             for (Path level : trust.directories()) {
                 listing.add(level.getParent().toString(), trust.state(level).label());
             }
-            listing.print(invocation, formatting.settle(invocation.host(), Optional.empty()), "trusted");
+            listing.print(invocation, invocation.format(formatting), "trusted");
             return ExitCode.SUCCESS.status();
         }
         if (revoke != null) {
