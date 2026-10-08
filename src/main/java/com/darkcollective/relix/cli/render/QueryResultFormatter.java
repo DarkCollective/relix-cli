@@ -68,7 +68,7 @@ public final class QueryResultFormatter {
      * @return the formatted table as a multi-line string; never null or empty
      */
     public static String format(String label, Schema schema, Stream<Row> rows) {
-        return format(label, schema, rows.toList(), "NULL");
+        return format(label, schema, rows.toList(), "NULL", false);
     }
 
     /**
@@ -78,9 +78,11 @@ public final class QueryResultFormatter {
      * @param schema   the result's output schema; must not be {@code null}
      * @param rows     the result rows
      * @param nullText how a NULL is shown
+     * @param color    whether to colour it for a terminal: bold column names, dim NULLs
      * @return the formatted table as a multi-line string; never null or empty
      */
-    public static String format(String label, Schema schema, List<? extends Row> rows, String nullText) {
+    public static String format(String label, Schema schema, List<? extends Row> rows, String nullText,
+                                boolean color) {
         // Closed schemas enumerate their declared columns; open (schema-on-read)
         // schemas have none, so we discover the column set from the rows — the
         // ordered union of each document's field names (see DocumentRow).
@@ -113,7 +115,7 @@ public final class QueryResultFormatter {
         sb.append(' ');
         for (int i = 0; i < ncols; i++) {
             if (i > 0) sb.append("  ");
-            sb.append(pad(columns.get(i), widths[i], false));
+            sb.append(paint(pad(columns.get(i), widths[i], false), BOLD, color));
         }
         sb.append('\n');
 
@@ -133,7 +135,7 @@ public final class QueryResultFormatter {
                 var value    = row.get(columns.get(i));
                 String cell  = truncate(cell(value, nullText), widths[i]);
                 boolean rightAlign = value instanceof NumberValue;
-                sb.append(pad(cell, widths[i], rightAlign));
+                sb.append(paint(pad(cell, widths[i], rightAlign), DIM, color && value.isNull()));
             }
             sb.append('\n');
         }
@@ -155,6 +157,18 @@ public final class QueryResultFormatter {
     }
 
     // ── private helpers ──────────────────────────────────────────────────────
+
+    private static final String BOLD = "\u001b[1m";
+    private static final String DIM = "\u001b[2m";
+    private static final String RESET = "\u001b[0m";
+
+    /**
+     * Text in a terminal style, or as it is. Styled after padding, so that the escapes take
+     * no part in the alignment.
+     */
+    private static String paint(String text, String style, boolean on) {
+        return on ? style + text + RESET : text;
+    }
 
     /** A cell's text, with a NULL shown as {@code nullText}. */
     private static String cell(Value value, String nullText) {

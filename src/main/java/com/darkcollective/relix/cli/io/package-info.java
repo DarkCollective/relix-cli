@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 /**
- * Where scripts come from: a {@code ScriptLoader} over files, so that {@code import}
- * resolves relative to the importing file.
+ * The command's streams: where scripts come from, with a {@code ScriptLoader} over files
+ * so that {@code import} resolves relative to the importing file; where rows go, watched
+ * for the reader going away; and what an interrupt stops.
  */
 package com.darkcollective.relix.cli.io;
