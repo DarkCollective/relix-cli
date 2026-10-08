@@ -272,9 +272,13 @@ final class Invocation {
                 || Files.isRegularFile(level.resolve(Relixrc.FILE_NAME)));
     }
 
-    /** A path as a shell word: quoted when it holds anything a shell would split or expand. */
+    /**
+     * A path as a shell word: quoted when it holds anything a shell would split or expand.
+     * On Windows a backslash is the separator, not an escape, so it needs no quoting there.
+     */
     static String shellWord(String path) {
-        if (path.matches("[A-Za-z0-9_@%+=:,./~-]+")) {
+        String plain = File.separatorChar == '\\' ? "[A-Za-z0-9_@%+=:,./~\\\\-]+" : "[A-Za-z0-9_@%+=:,./~-]+";
+        if (path.matches(plain)) {
             return path;
         }
         return "'" + path.replace("'", "'\\''") + "'";

@@ -57,6 +57,11 @@ class CatalogTrustTest {
         return name + " := [\n| v |\n|---|\n| " + value + " |\n];\n";
     }
 
+    /** A path as tsv writes it: a backslash, Windows' separator, escaped. */
+    private static String escaped(Path path) {
+        return path.toString().replace("\\", "\\\\");
+    }
+
     private static Path write(Path file, String text) throws IOException {
         Files.createDirectories(file.getParent());
         return Files.writeString(file, text, StandardCharsets.UTF_8);
@@ -118,9 +123,10 @@ class CatalogTrustTest {
             assertThat(result.status()).as(result.toString()).isEqualTo(5);
             assertThat(result.err())
                     .contains("relix: warning: skipping " + acme.resolve(".relix") + ", which is not trusted;"
-                            + " to load it: relix catalog trust " + acme)
+                            + " to load it: relix catalog trust " + Invocation.shellWord(acme.toString()))
                     .contains("Hook is declared in " + acme.resolve(".relix/catalog/hook.relix")
-                            + ", which is not trusted");
+                            + ", which is not trusted; to load it: relix catalog trust "
+                            + Invocation.shellWord(acme.toString()));
         }
 
         @Test
@@ -238,7 +244,7 @@ class CatalogTrustTest {
             assertThat(revoked.status()).as(revoked.toString()).isZero();
             assertThat(run.status()).as(run.toString()).isEqualTo(5);
             assertThat(again.status()).isEqualTo(2);
-            assertThat(again.err()).contains("work/acme is not trusted");
+            assertThat(again.err()).contains(Path.of("work", "acme") + " is not trusted");
         }
 
         @Test
@@ -255,7 +261,7 @@ class CatalogTrustTest {
             var table = Cli.in(acme).home(home).run("catalog", "trust", "--list", "--color=never");
 
             assertThat(tsv.status()).as(tsv.toString()).isZero();
-            assertThat(tsv.out()).isEqualTo("directory\tstate\n" + acme + "\tchanged\n" + other + "\ttrusted\n");
+            assertThat(tsv.out()).isEqualTo("directory\tstate\n" + escaped(acme) + "\tchanged\n" + escaped(other) + "\ttrusted\n");
             assertThat(table.out()).contains("directory").contains("changed").contains("(2 rows)");
         }
     }
