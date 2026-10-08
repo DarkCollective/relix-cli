@@ -22,6 +22,7 @@ import com.darkcollective.relix.cli.io.Interruption;
 import com.darkcollective.relix.cli.io.ScriptSource;
 import com.darkcollective.relix.cli.report.EventFeed;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.HelpCommand;
 import picocli.CommandLine.IVersionProvider;
 import picocli.CommandLine.Mixin;
 
@@ -47,7 +48,8 @@ import java.util.concurrent.Callable;
         subcommands = {
             RunCommand.class, CheckCommand.class, ExplainCommand.class, OptimizeCommand.class,
             TraceCommand.class, BundleCommand.class, IrCommand.class, ProvenanceCommand.class,
-            FmtCommand.class, CatalogCommand.class},
+            FmtCommand.class, CatalogCommand.class, DriversCommand.class, ConnectorsCommand.class,
+            DocCommand.class, HelpCommand.class, VersionCommand.class, CompletionCommand.class},
         exitCodeListHeading = "%nExit status:%n",
         exitCodeList = {
             " 0:success",

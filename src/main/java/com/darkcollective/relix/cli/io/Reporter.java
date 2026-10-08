@@ -94,6 +94,17 @@ public final class Reporter {
     }
 
     /**
+     * Prints what a command did, such as what it installed, unless only errors are wanted.
+     *
+     * @param message what was done
+     */
+    public void info(String message) {
+        if (verbosity != Verbosity.QUIET) {
+            err.print("relix: " + message + "\n");
+        }
+    }
+
+    /**
      * Prints a notice when {@code -v} is given.
      *
      * @param message what the command did
