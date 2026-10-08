@@ -17,6 +17,7 @@ package com.darkcollective.relix.cli.command;
 
 import com.darkcollective.relix.cli.Main;
 import com.darkcollective.relix.cli.io.Host;
+import com.darkcollective.relix.cli.io.Interruption;
 import com.darkcollective.relix.cli.io.ScriptSource;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.IVersionProvider;
@@ -44,6 +45,7 @@ import java.util.concurrent.Callable;
         exitCodeListHeading = "%nExit status:%n",
         exitCodeList = {
             " 0:success",
+            " 1:an assertion failed (--fail-empty, --fail-rows)",
             " 2:usage error (bad option, nothing to run)",
             " 3:the script did not parse or analyse",
             " 4:execution failed (a data error, a limit hit)",
@@ -59,31 +61,39 @@ public final class RelixCommand implements Callable<Integer> {
     @Mixin
     ScriptOptions scripts;
 
+    @Mixin
+    OutputOptions output;
+
     private final Host host;
+    private final Interruption interruption;
 
     /**
      * The root command over a host.
      *
-     * @param host the process it runs in
+     * @param host         the process it runs in
+     * @param interruption what an interrupt stops
      */
-    public RelixCommand(Host host) {
+    public RelixCommand(Host host, Interruption interruption) {
         this.host = Objects.requireNonNull(host, "host");
+        this.interruption = Objects.requireNonNull(interruption, "interruption");
     }
 
     @Override
     public Integer call() {
-        return run(scripts);
+        return run(scripts, output);
     }
 
     /**
      * Runs the scripts {@code scripts} names, with this invocation's global options.
      *
      * @param scripts where the scripts come from
+     * @param output  where their rows go
      * @return the exit status
      */
-    int run(ScriptOptions scripts) {
+    int run(ScriptOptions scripts, OutputOptions output) {
         Invocation invocation = new Invocation(host, options);
-        return new ScriptRunner(invocation)
+        OutputOptions.Output settled = output.settle(host);
+        return new ScriptRunner(invocation, settled, interruption)
                 .run(ScriptSource.resolve(scripts.expressions, scripts.files, host, invocation.directory()))
                 .status();
     }

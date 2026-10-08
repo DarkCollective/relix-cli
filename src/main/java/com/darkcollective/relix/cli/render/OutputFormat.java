@@ -76,7 +76,7 @@ public enum OutputFormat {
 
                 @Override
                 public String end() {
-                    return QueryResultFormatter.format(label, schema, rows, nullText);
+                    return QueryResultFormatter.format(label, schema, rows, nullText, options.color());
                 }
             };
         }
@@ -105,10 +105,19 @@ public enum OutputFormat {
     /**
      * One JSON object per line ({@code {column: value}}), the values encoded as
      * {@link #JSON} encodes them. There is no header, and a NULL is JSON's {@code null}.
+     * {@link Options#tagQuery()} adds a {@code "_query"} member naming the result set, so
+     * that several can share one stream.
      */
     NDJSON {
         @Override
         public Encoder encoder(String label, Schema schema, Options options) {
+            if (options.tagQuery()) {
+                String tag = "{" + JsonText.quote(QUERY_MEMBER) + ":" + JsonText.quote(label);
+                return row -> {
+                    String object = jsonObject(schema, row);
+                    return tag + (object.length() > 2 ? "," : "") + object.substring(1) + "\n";
+                };
+            }
             return row -> jsonObject(schema, row) + "\n";
         }
     },
@@ -175,6 +184,9 @@ public enum OutputFormat {
         }
     };
 
+    /** The member {@link Options#tagQuery()} adds to each NDJSON object. */
+    public static final String QUERY_MEMBER = "_query";
+
     /**
      * How a result set is written, beyond its format.
      *
@@ -183,11 +195,15 @@ public enum OutputFormat {
      * @param nullText how a NULL is written, or {@code null} for the format's own: empty in
      *                 the delimited formats and Markdown, {@code NULL} in a table. The JSON
      *                 formats always write JSON's {@code null}.
+     * @param color    whether a {@link #TABLE} uses terminal colours: bold column names, dim
+     *                 NULLs. The other formats are never coloured.
+     * @param tagQuery whether each {@link #NDJSON} object names its result set in a
+     *                 {@value #QUERY_MEMBER} member
      */
-    public record Options(boolean header, String nullText) {
+    public record Options(boolean header, String nullText, boolean color, boolean tagQuery) {
 
-        /** Each format's own defaults: a header row, and its own NULL. */
-        public static final Options DEFAULTS = new Options(true, null);
+        /** Each format's own defaults: a header row, its own NULL, no colour, no tag. */
+        public static final Options DEFAULTS = new Options(true, null, false, false);
     }
 
     /**

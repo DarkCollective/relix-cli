@@ -17,6 +17,7 @@ package com.darkcollective.relix.cli;
 
 import com.darkcollective.relix.cli.command.RelixCommand;
 import com.darkcollective.relix.cli.io.Host;
+import com.darkcollective.relix.cli.io.Interruption;
 import com.darkcollective.relix.embed.Relix;
 import com.darkcollective.relix.embed.RelixException;
 import picocli.CommandLine;
@@ -37,10 +38,15 @@ public final class Main {
     /**
      * Runs the command and exits with its status.
      *
+     * <p>An interrupt ({@code SIGINT}) runs the shutdown hook, which stops the query in
+     * flight and closes its session; the JVM then exits 130, the shell's value for it.
+     *
      * @param args the command line
      */
     public static void main(String[] args) {
-        System.exit(run(Host.system(), args));
+        Interruption interruption = new Interruption();
+        Runtime.getRuntime().addShutdownHook(new Thread(interruption::interrupt, "relix-interrupt"));
+        System.exit(run(Host.system(), interruption, args));
     }
 
     /**
@@ -51,9 +57,22 @@ public final class Main {
      * @return the exit status
      */
     public static int run(Host host, String... args) {
+        return run(host, new Interruption(), args);
+    }
+
+    /**
+     * Runs the command over a host and returns its exit status, without exiting.
+     *
+     * @param host         the process to run in
+     * @param interruption what an interrupt stops; {@link Interruption#interrupt()} ends
+     *                     the run with 130
+     * @param args         the command line
+     * @return the exit status
+     */
+    public static int run(Host host, Interruption interruption, String... args) {
         PrintWriter out = new PrintWriter(host.out(), true, StandardCharsets.UTF_8);
         PrintWriter err = new PrintWriter(host.err(), true, StandardCharsets.UTF_8);
-        CommandLine command = new CommandLine(new RelixCommand(host))
+        CommandLine command = new CommandLine(new RelixCommand(host, interruption))
                 .setOut(out)
                 .setErr(err)
                 .setPosixClusteredShortOptionsAllowed(true)

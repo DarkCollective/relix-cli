@@ -177,7 +177,7 @@ final class OutputFormatTest {
             List<Row> rows = List.of(row(SCHEMA, NumberValue.of("1"), NullValue.INSTANCE));
 
             assertThat(render(OutputFormat.TSV, SCHEMA, rows)).isEqualTo("id\tname\n1\t\n");
-            assertThat(render(OutputFormat.TSV, SCHEMA, rows, new OutputFormat.Options(true, "\\N")))
+            assertThat(render(OutputFormat.TSV, SCHEMA, rows, new OutputFormat.Options(true, "\\N", false, false)))
                     .isEqualTo("id\tname\n1\t\\N\n");
         }
 
@@ -186,7 +186,7 @@ final class OutputFormatTest {
         void noHeader() {
             String out = render(OutputFormat.TSV, SCHEMA,
                     List.of(row(SCHEMA, NumberValue.of("1"), new StringValue("Alice"))),
-                    new OutputFormat.Options(false, null));
+                    new OutputFormat.Options(false, null, false, false));
 
             assertThat(out).isEqualTo("1\tAlice\n");
         }
@@ -244,7 +244,7 @@ final class OutputFormatTest {
         void nulls() {
             List<Row> rows = List.of(row(SCHEMA, NumberValue.of("1"), NullValue.INSTANCE));
 
-            assertThat(render(OutputFormat.NDJSON, SCHEMA, rows, new OutputFormat.Options(false, "\\N")))
+            assertThat(render(OutputFormat.NDJSON, SCHEMA, rows, new OutputFormat.Options(false, "\\N", false, false)))
                     .isEqualTo("{\"id\":1,\"name\":null}\n");
         }
 
@@ -252,6 +252,16 @@ final class OutputFormatTest {
         @DisplayName("an empty result writes nothing")
         void empty() {
             assertThat(render(OutputFormat.NDJSON, SCHEMA, List.of())).isEmpty();
+        }
+
+        @Test
+        @DisplayName("tags each object with its result set's label when asked")
+        void tagged() {
+            String out = render(OutputFormat.NDJSON, SCHEMA,
+                    List.of(row(SCHEMA, NumberValue.of("1"), new StringValue("Alice"))),
+                    new OutputFormat.Options(true, null, false, true));
+
+            assertThat(out).isEqualTo("{\"_query\":\"R\",\"id\":1,\"name\":\"Alice\"}\n");
         }
     }
 

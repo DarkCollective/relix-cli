@@ -29,7 +29,7 @@ import java.util.concurrent.Callable;
         mixinStandardHelpOptions = true,
         sortOptions = false,
         usageHelpAutoWidth = true,
-        description = "Runs scripts and writes every query's rows to standard output.")
+        description = "Runs scripts and writes their queries' rows to standard output.")
 final class RunCommand implements Callable<Integer> {
 
     @ParentCommand
@@ -38,8 +38,11 @@ final class RunCommand implements Callable<Integer> {
     @Mixin
     ScriptOptions scripts;
 
+    @Mixin
+    OutputOptions output;
+
     @Override
     public Integer call() {
-        return parent.run(scripts);
+        return parent.run(scripts, output);
     }
 }
