@@ -53,8 +53,8 @@ final class GlobalOptions {
 
     @Option(names = "--catalog", paramLabel = "FILE", scope = ScopeType.INHERIT,
             description = {
-                "Add a catalog file, nearer than the .relix/ directories' (repeatable;",
-                "also $RELIX_CATALOG_PATH, a list of files separated as PATH is)."})
+                "Add a catalog file, nearer than the .relix/ directories'. Repeatable.",
+                "$RELIX_CATALOG_PATH adds files too, separated as in PATH."})
     List<Path> catalogs = new ArrayList<>();
 
     @Option(names = {"-q", "--quiet"}, scope = ScopeType.INHERIT,
