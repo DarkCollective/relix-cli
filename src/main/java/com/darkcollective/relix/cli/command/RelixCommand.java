@@ -47,7 +47,7 @@ import java.util.concurrent.Callable;
         subcommands = {
             RunCommand.class, CheckCommand.class, ExplainCommand.class, OptimizeCommand.class,
             TraceCommand.class, BundleCommand.class, IrCommand.class, ProvenanceCommand.class,
-            CatalogCommand.class},
+            FmtCommand.class, CatalogCommand.class},
         exitCodeListHeading = "%nExit status:%n",
         exitCodeList = {
             " 0:success",
