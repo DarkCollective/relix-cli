@@ -194,6 +194,7 @@ adds timings.
 | `-C DIR` | act as if started in DIR (catalog discovery, relative paths) — `git -C`, `make -C`, `tar -C` | — |
 | `-P NAME`, `--profile=NAME` | the named profile `${VAR}`s resolve from (`RELIX_PROFILE`) | `-e/--env` (renamed: `-e` is the expression, by convention) |
 | `-D NAME=VALUE` | set one `${VAR}` for this run (`awk -v`, `cc -D`); beats the profile. Not for secrets: it lands in shell history and `ps` | — |
+| `-a NAME=VALUE`, `--arg` | bind the query parameter `$NAME` (`awk -v`, `psql -v`); repeatable. Bound, never pasted into the text, so it cannot change the query (R3) | — |
 | `-N`, `--no-catalog` | ignore `.relix/` discovery | — |
 | `--catalog=FILE` | add a catalog file (repeatable; `RELIX_CATALOG_PATH`, `:`-separated) | — |
 | `--now=INSTANT` | pin `NOW()` (`RELIX_NOW`) | same |
