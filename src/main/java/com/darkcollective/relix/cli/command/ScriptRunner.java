@@ -17,6 +17,7 @@ package com.darkcollective.relix.cli.command;
 
 import com.darkcollective.relix.cli.CommandFailure;
 import com.darkcollective.relix.cli.ExitCode;
+import com.darkcollective.relix.cli.catalog.Declaration;
 import com.darkcollective.relix.cli.io.InputBinding;
 import com.darkcollective.relix.cli.io.Interruption;
 import com.darkcollective.relix.cli.io.Reporter;
@@ -30,6 +31,7 @@ import com.darkcollective.relix.embed.Rows;
 import com.darkcollective.relix.embed.Tuple;
 import com.darkcollective.relix.events.QueryEvent;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Stream;
@@ -50,6 +52,9 @@ import java.util.stream.Stream;
  * prints one result set, because a CSV with two headers is not a CSV: the script's last
  * query, or the one {@code --query} names; {@code --all} with ndjson prints every one,
  * tagged. A query not printed is not run.
+ *
+ * <p>A script that fails for want of a name only an untrusted {@code .relix/} declares
+ * exits 5, the environment's code, with the command that trusts it.
  *
  * <p>Two things end the whole run at once, whatever script it is in: standard output
  * closing (exit 141) and an interrupt (exit 130). Neither says anything.
@@ -108,7 +113,7 @@ final class ScriptRunner {
                 errors |= diagnostic.isError();
             }
             if (errors) {
-                return ExitCode.ANALYSIS;
+                return withheld(diagnostics) ? ExitCode.ENVIRONMENT : ExitCode.ANALYSIS;
             }
             List<Relation> queries = chosen(session.script(source.text()));
             if (queries == null) {
@@ -133,6 +138,28 @@ final class ScriptRunner {
         } finally {
             interruption.session(null);
         }
+    }
+
+    /**
+     * Whether a script failed for a name only an untrusted directory declares, saying so:
+     * then the script is not wrong, the environment is.
+     *
+     * @param diagnostics the script's diagnostics, with an error among them
+     * @return {@code true} when an error names a withheld declaration
+     */
+    private boolean withheld(List<Diagnostic> diagnostics) {
+        boolean found = false;
+        for (Declaration declaration : invocation.catalog().withheld()) {
+            String quoted = "'" + declaration.name() + "'";
+            if (diagnostics.stream().anyMatch(d -> d.isError() && d.message().contains(quoted))) {
+                Path project = declaration.file().level().getParent();
+                invocation.reporter().error(declaration.name() + " is declared in "
+                        + declaration.file().path() + ", which is not trusted; to load it: relix catalog trust "
+                        + Invocation.shellWord(project.toString()));
+                found = true;
+            }
+        }
+        return found;
     }
 
     /**
