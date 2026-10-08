@@ -173,6 +173,30 @@ class FmtTest {
         }
 
         @Test
+        @DisplayName("keeps a comment at the end of a table's row on that row, its columns aligned")
+        void rowComment() {
+            String text = """
+                    Goals := [
+                    | id | minute |
+                    |----|--------|
+                    | 1 | 12 |  -- the first
+                    | 22 | 5 |
+                    | 3 | 105 |  -- and the third
+                    ];
+                    """;
+
+            assertThat(fmt(text)).isEqualTo("""
+                    Goals := [
+                    | id  | minute |
+                    |-----|--------|
+                    | 1   | 12     |  -- the first
+                    | 22  | 5      |
+                    | 3   | 105    |  -- and the third
+                    ];
+                    """);
+        }
+
+        @Test
         @Disabled("the engine's ScriptPrinter drops a blank line between a comment and the "
                 + "statement or namespace after it (DarkCollective/relix-core#99 follow-up)")
         @DisplayName("keeps a blank line between a comment and what follows it")
