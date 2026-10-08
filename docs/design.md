@@ -327,7 +327,7 @@ Everything goes through `com.darkcollective.relix.embed`:
 | queries | `script(text)`, `relation(expression)` |
 | rows | `Relation.stream()` (closed on `EPIPE`/`SIGINT`) |
 | `explain`, `optimize`, `trace`, `bundle`, `ir`, `provenance` | `explain`/`explainJson`, `optimized().render()` + `rewrites()`, `stream(listener)`, `renderJson`, `model().ir()`, `provenance(semiring[, weight])` |
-| `fmt` | the statement printer behind `Relix.definitions()` |
+| `fmt` | `ScriptPrinter.print(Script, Spelling)`, which keeps comments |
 | `catalog ls/schema` | `relation("relix.relations")` etc. |
 | `doc` | the reference lookup in `relix-docs` (R5): language pages and the installed functions' pages, one index |
 
@@ -460,7 +460,8 @@ keyword or name, across the language pages and the pages of the installed functi
 a language keyword keeping a shared name (`fix` is the operator; `Fix` the function is
 found as a function). Every program that shows the reference needs that same index, so it
 belongs beside the pages it indexes rather than in each front end. Filed as
-DarkCollective/relix-core#95.
+DarkCollective/relix-core#95, and done: `relix doc` looks pages up in relix-docs'
+`ReferenceLookup`.
 
 ## 10. Decisions
 

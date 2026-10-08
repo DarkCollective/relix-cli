@@ -25,12 +25,11 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * A script's text together with what it parses to: where in the text each statement is,
- * and where its comments are.
+ * A script's text together with what it parses to: where in the text each statement is.
  *
  * <p>The parser gives each statement the place it starts; this finds where it ends, at the
- * semicolon that closes it, and finds the comments. Those are the language's, read as its
- * two lexers read them: {@code --} to the end of the line and {@code /* *}{@code /}, outside
+ * semicolon that closes it, passing over the comments a semicolon may be in. Those are the
+ * language's, read as its two lexers read them: {@code --} to the end of the line and {@code /* *}{@code /}, outside
  * a string. Within an inline table only a line that begins with one is a comment, since a
  * cell may hold {@code --} as data, and a table's {@code |---|} rule is not one.
  */
@@ -60,25 +59,21 @@ public final class ScriptText {
      *
      * @param statement what it parses to
      * @param span      its text, from its first character to the semicolon that ends it
-     * @param comments  the comments within that text
      */
-    public record Piece(Statement statement, Span span, List<Span> comments) {
+    public record Piece(Statement statement, Span span) {
 
-        /** Checks every component and copies the comments. */
+        /** Checks every component. */
         public Piece {
             Objects.requireNonNull(statement, "statement");
             Objects.requireNonNull(span, "span");
-            comments = List.copyOf(comments);
         }
     }
 
     private final String text;
-    private final Script script;
     private final List<Piece> pieces;
 
-    private ScriptText(String text, Script script, List<Piece> pieces) {
+    private ScriptText(String text, List<Piece> pieces) {
         this.text = text;
-        this.script = script;
         this.pieces = List.copyOf(pieces);
     }
 
@@ -97,9 +92,9 @@ public final class ScriptText {
             int start = offset(statement.location(), lines, text);
             Scan scan = new Scan(text, start);
             scan.toEndOfStatement();
-            pieces.add(new Piece(statement, new Span(start, scan.position), scan.comments));
+            pieces.add(new Piece(statement, new Span(start, scan.position)));
         }
-        return new ScriptText(text, script, pieces);
+        return new ScriptText(text, pieces);
     }
 
     /** {@return the text} */
@@ -107,28 +102,9 @@ public final class ScriptText {
         return text;
     }
 
-    /** {@return what the text parses to} */
-    public Script script() {
-        return script;
-    }
-
     /** {@return each statement and where it is written, in order} */
     public List<Piece> statements() {
         return pieces;
-    }
-
-    /**
-     * The comments in a stretch of the text that holds nothing else but white space, such as
-     * the stretch between two statements.
-     *
-     * @param from where the stretch starts
-     * @param to   where it ends
-     * @return its comments, in order
-     */
-    public List<Span> comments(int from, int to) {
-        Scan scan = new Scan(text.substring(0, to), from);
-        scan.toEnd();
-        return scan.comments;
     }
 
     private static int[] lineStarts(String text) {
@@ -148,9 +124,9 @@ public final class ScriptText {
     }
 
     /**
-     * Reads the text as the lexers do, as far as finding comments and the end of a
-     * statement needs: through strings, delimited names, braces (an expression body) and
-     * brackets (an inline table).
+     * Reads the text as the lexers do, as far as finding the end of a statement needs:
+     * through comments, strings, delimited names, braces (an expression body) and brackets
+     * (an inline table).
      */
     private static final class Scan {
 
@@ -158,7 +134,6 @@ public final class ScriptText {
 
         private final String text;
         private final List<Context> stack = new ArrayList<>(List.of(Context.TOP));
-        private final List<Span> comments = new ArrayList<>();
         private int position;
 
         Scan(String text, int start) {
@@ -173,13 +148,6 @@ public final class ScriptText {
                     position++;
                     return;
                 }
-                step();
-            }
-        }
-
-        /** Reads to the end of the text. */
-        void toEnd() {
-            while (position < text.length()) {
                 step();
             }
         }
@@ -236,7 +204,7 @@ public final class ScriptText {
             }
         }
 
-        /** Reads a comment starting here, if one does. */
+        /** Reads past a comment starting here, if one does. */
         private boolean comment(Context context) {
             if (!text.startsWith("--", position) && !text.startsWith("/*", position)) {
                 return false;
@@ -244,7 +212,6 @@ public final class ScriptText {
             if (context == Context.BRACKET && !atLineStart()) {
                 return false;
             }
-            int start = position;
             if (text.startsWith("--", position)) {
                 int end = text.indexOf('\n', position);
                 position = end < 0 ? text.length() : end;
@@ -252,7 +219,6 @@ public final class ScriptText {
                 int end = text.indexOf("*/", position + 2);
                 position = end < 0 ? text.length() : end + 2;
             }
-            comments.add(new Span(start, position));
             return true;
         }
 

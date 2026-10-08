@@ -19,9 +19,11 @@ import com.darkcollective.relix.cli.CommandFailure;
 import com.darkcollective.relix.cli.ExitCode;
 import com.darkcollective.relix.cli.io.Pager;
 import com.darkcollective.relix.cli.io.RowSink;
-import com.darkcollective.relix.cli.render.DocIndex;
 import com.darkcollective.relix.cli.render.DocRenderer;
+import com.darkcollective.relix.docs.ReferenceLookup;
 import com.darkcollective.relix.docs.ReferencePage;
+import com.darkcollective.relix.docs.RelixDocs;
+import com.darkcollective.relix.function.FunctionCatalog;
 import com.darkcollective.relix.symbol.ScalarType;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Mixin;
@@ -29,6 +31,8 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
@@ -40,6 +44,9 @@ import java.util.concurrent.Callable;
  * function, so {@code relix doc fix} is the recursion operator and
  * {@code relix doc --function fix} is the function. The page is rendered for a terminal
  * and, on one, shown through {@code $PAGER}. With no topic, the pages are listed, as rows.
+ *
+ * <p>Pages are found by {@code relix-docs}' {@link ReferenceLookup}, over the language pages
+ * and the installed functions' pages (DarkCollective/relix-core#95).
  */
 @Command(name = "doc",
         mixinStandardHelpOptions = true,
@@ -75,16 +82,16 @@ final class DocCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         Invocation invocation = root.invocation(false);
-        DocIndex index = DocIndex.installed();
+        ReferenceLookup index = ReferenceLookup.of(FunctionCatalog.discover());
         if (topic == null) {
             list(invocation, index);
             return ExitCode.SUCCESS.status();
         }
-        Optional<ReferencePage> found = function ? index.function(topic) : index.lookup(topic);
+        Optional<ReferencePage> found = function ? index.function(topic) : index.entry(topic);
         ReferencePage page = found.orElseThrow(() -> new CommandFailure(ExitCode.USAGE,
                 "no reference page for '" + topic + "'" + (function ? " among the functions" : "")
                         + "; relix doc" + (function ? " --function" : "") + " lists them"));
-        String text = index.markdown(page).orElseThrow(() -> new CommandFailure(ExitCode.INTERNAL,
+        String text = index.page(page).orElseThrow(() -> new CommandFailure(ExitCode.INTERNAL,
                 "the reference lists " + page.path() + " but has no page there"));
         RowSink out = new RowSink(invocation.host().out(), false);
         if (!markdown) {
@@ -98,13 +105,17 @@ final class DocCommand implements Callable<Integer> {
         return ExitCode.SUCCESS.status();
     }
 
-    private void list(Invocation invocation, DocIndex index) {
+    /** The language pages, in the reference's order, unless --function; then the functions'. */
+    private void list(Invocation invocation, ReferenceLookup index) {
         Listing listing = new Listing("topic", ScalarType.STRING, "category", ScalarType.STRING,
                 "title", ScalarType.STRING, "summary", ScalarType.STRING);
-        for (ReferencePage page : index.pages()) {
-            if (!function || page.category().equals(DocIndex.FUNCTION)) {
-                listing.add(page.symbol(), page.category(), page.title(), page.summary());
-            }
+        List<ReferencePage> pages = new ArrayList<>();
+        if (!function) {
+            pages.addAll(RelixDocs.referencePages());
+        }
+        index.functionsByCategory().values().forEach(pages::addAll);
+        for (ReferencePage page : pages) {
+            listing.add(page.symbol(), page.category(), page.title(), page.summary());
         }
         listing.print(invocation, invocation.format(formatting), "reference");
     }
