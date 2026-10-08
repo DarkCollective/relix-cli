@@ -17,6 +17,7 @@ package com.darkcollective.relix.cli.render;
 
 import com.darkcollective.relix.processor.Row;
 import com.darkcollective.relix.value.NumberValue;
+import com.darkcollective.relix.value.Value;
 import com.darkcollective.relix.symbol.Schema;
 
 import java.util.List;
@@ -41,7 +42,7 @@ import java.util.stream.Stream;
  *   <li>Column widths are the maximum of the header name and the widest value,
  *       capped at {@value #MAX_COLUMN_WIDTH} characters.</li>
  *   <li>Values longer than the cap are truncated with {@code …}.</li>
- *   <li>{@code NULL} values display as {@code NULL}.</li>
+ *   <li>{@code NULL} values display as {@code NULL}, or as the caller says.</li>
  * </ul>
  *
  * <p>This class is stateless and cannot be instantiated.
@@ -67,10 +68,19 @@ public final class QueryResultFormatter {
      * @return the formatted table as a multi-line string; never null or empty
      */
     public static String format(String label, Schema schema, Stream<Row> rows) {
-        return format(label, schema, rows.toList());
+        return format(label, schema, rows.toList(), "NULL");
     }
 
-    private static String format(String label, Schema schema, List<Row> rows) {
+    /**
+     * Formats a query's rows, already collected, as a printable ASCII table.
+     *
+     * @param label    the result's display label; must not be {@code null}
+     * @param schema   the result's output schema; must not be {@code null}
+     * @param rows     the result rows
+     * @param nullText how a NULL is shown
+     * @return the formatted table as a multi-line string; never null or empty
+     */
+    public static String format(String label, Schema schema, List<? extends Row> rows, String nullText) {
         // Closed schemas enumerate their declared columns; open (schema-on-read)
         // schemas have none, so we discover the column set from the rows — the
         // ordered union of each document's field names (see DocumentRow).
@@ -86,7 +96,7 @@ public final class QueryResultFormatter {
         }
         for (Row row : rows) {
             for (int i = 0; i < ncols; i++) {
-                int len = row.get(columns.get(i)).asDisplayString().length();
+                int len = cell(row.get(columns.get(i)), nullText).length();
                 widths[i] = Math.min(MAX_COLUMN_WIDTH, Math.max(widths[i], len));
             }
         }
@@ -121,7 +131,7 @@ public final class QueryResultFormatter {
             for (int i = 0; i < ncols; i++) {
                 if (i > 0) sb.append("  ");
                 var value    = row.get(columns.get(i));
-                String cell  = truncate(value.asDisplayString(), widths[i]);
+                String cell  = truncate(cell(value, nullText), widths[i]);
                 boolean rightAlign = value instanceof NumberValue;
                 sb.append(pad(cell, widths[i], rightAlign));
             }
@@ -136,7 +146,7 @@ public final class QueryResultFormatter {
     }
 
     /** The ordered union of every row's column names (first-seen order). */
-    private static List<String> discoverColumns(List<Row> rows) {
+    private static List<String> discoverColumns(List<? extends Row> rows) {
         var columns = new java.util.LinkedHashSet<String>();
         for (Row row : rows) {
             columns.addAll(row.columnNames());
@@ -145,6 +155,11 @@ public final class QueryResultFormatter {
     }
 
     // ── private helpers ──────────────────────────────────────────────────────
+
+    /** A cell's text, with a NULL shown as {@code nullText}. */
+    private static String cell(Value value, String nullText) {
+        return value.isNull() ? nullText : value.asDisplayString();
+    }
 
     /** Pads {@code s} to {@code width} chars, right- or left-aligning. */
     private static String pad(String s, int width, boolean rightAlign) {
