@@ -44,8 +44,11 @@ final class RunCommand implements Callable<Integer> {
     @Mixin
     OutputOptions output;
 
+    @Mixin
+    TraceOption trace;
+
     @Override
     public Integer call() {
-        return parent.run(scripts, inputs, output);
+        return parent.run(scripts, inputs, output, trace);
     }
 }

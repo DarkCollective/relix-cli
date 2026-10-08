@@ -90,6 +90,22 @@ public final class RowSink {
         return count;
     }
 
+    /**
+     * Writes a whole text, such as a report or a plan, and flushes it.
+     *
+     * @param text the text
+     * @throws CommandFailure with {@link ExitCode#PIPE_CLOSED} when standard output has
+     *                        gone away
+     */
+    public void text(String text) {
+        try {
+            write(text);
+            out.flush();
+        } catch (IOException e) {
+            throw new CommandFailure(ExitCode.PIPE_CLOSED, null);
+        }
+    }
+
     private void write(String text) throws IOException {
         if (!text.isEmpty()) {
             out.write(text.getBytes(StandardCharsets.UTF_8));
