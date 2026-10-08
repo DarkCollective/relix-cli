@@ -67,6 +67,11 @@ class CatalogInspectionTest {
         assertThat(trusted.status()).as(trusted.toString()).isZero();
     }
 
+    /** A path as tsv writes it: a backslash, Windows' separator, escaped. */
+    private static String escaped(Path path) {
+        return path.toString().replace("\\", "\\\\");
+    }
+
     private static Path write(Path file, String text) throws IOException {
         Files.createDirectories(file.getParent());
         return Files.writeString(file, text, StandardCharsets.UTF_8);
@@ -93,9 +98,9 @@ class CatalogInspectionTest {
 
             assertThat(result.status()).as(result.toString()).isZero();
             assertThat(result.out()).isEqualTo("file\ttrusted\tdeclares\n"
-                    + base + "\ttrue\tOrders Big\n"
-                    + project + "\ttrue\tOrders Customers\n"
-                    + secret + "\tfalse\tSecret Orders\n");
+                    + escaped(base) + "\ttrue\tOrders Big\n"
+                    + escaped(project) + "\ttrue\tOrders Customers\n"
+                    + escaped(secret) + "\tfalse\tSecret Orders\n");
             assertThat(result.err()).contains("relix catalog trust " + reports);
         }
 
@@ -116,7 +121,7 @@ class CatalogInspectionTest {
 
             var result = piped().run("-N", "--catalog", extra.toString(), "catalog", "files");
 
-            assertThat(result.out()).isEqualTo("file\ttrusted\tdeclares\n" + extra + "\ttrue\tX\n");
+            assertThat(result.out()).isEqualTo("file\ttrusted\tdeclares\n" + escaped(extra) + "\ttrue\tX\n");
         }
     }
 
@@ -131,9 +136,9 @@ class CatalogInspectionTest {
 
             assertThat(result.status()).as(result.toString()).isZero();
             assertThat(result.out()).isEqualTo("name\tkind\tarity\tfile\n"
-                    + "Big\tQR\t3\t" + base + "\n"
-                    + "Customers\tINL\t2\t" + project + "\n"
-                    + "Orders\tSRC\t3\t" + project + "\n");
+                    + "Big\tQR\t3\t" + escaped(base) + "\n"
+                    + "Customers\tINL\t2\t" + escaped(project) + "\n"
+                    + "Orders\tSRC\t3\t" + escaped(project) + "\n");
         }
 
         @Test
@@ -208,9 +213,9 @@ class CatalogInspectionTest {
 
             assertThat(result.status()).as(result.toString()).isZero();
             assertThat(result.out()).isEqualTo("file\tline\tkind\tstate\n"
-                    + secret + "\t6\ttable\tuntrusted\n"
-                    + project + "\t2\tsource\twins\n"
-                    + base + "\t1\ttable\tshadowed\n");
+                    + escaped(secret) + "\t6\ttable\tuntrusted\n"
+                    + escaped(project) + "\t2\tsource\twins\n"
+                    + escaped(base) + "\t1\ttable\tshadowed\n");
         }
 
         @Test
@@ -231,9 +236,9 @@ class CatalogInspectionTest {
             var result = piped().run("catalog", "where", "Orders");
 
             assertThat(result.out()).isEqualTo("file\tline\tkind\tstate\n"
-                    + secret + "\t6\ttable\twins\n"
-                    + project + "\t2\tsource\tshadowed\n"
-                    + base + "\t1\ttable\tshadowed\n");
+                    + escaped(secret) + "\t6\ttable\twins\n"
+                    + escaped(project) + "\t2\tsource\tshadowed\n"
+                    + escaped(base) + "\t1\ttable\tshadowed\n");
         }
 
         @Test
