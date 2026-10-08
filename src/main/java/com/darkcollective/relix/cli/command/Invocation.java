@@ -88,6 +88,11 @@ final class Invocation {
         return reporter;
     }
 
+    /** Whether {@code --remote} permits http(s) locations. */
+    boolean remote() {
+        return options.remote;
+    }
+
     /** The directory relative paths start from: the working directory, or {@code -C}. */
     Path directory() {
         return directory;
