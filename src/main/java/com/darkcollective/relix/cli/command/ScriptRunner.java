@@ -16,6 +16,7 @@
 package com.darkcollective.relix.cli.command;
 
 import com.darkcollective.relix.cli.CommandFailure;
+import com.darkcollective.relix.cli.EngineMessages;
 import com.darkcollective.relix.cli.ExitCode;
 import com.darkcollective.relix.cli.catalog.Declaration;
 import com.darkcollective.relix.cli.io.InputBinding;
@@ -213,7 +214,7 @@ final class ScriptRunner {
                 return ExitCode.USAGE;
             }
             if (e instanceof RelixException failure) {
-                reporter.error(source.name() + ": " + failure.getMessage());
+                reporter.error(source.name() + ": " + EngineMessages.of(failure));
                 return ExitCode.of(failure);
             }
             throw e;
