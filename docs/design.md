@@ -460,7 +460,8 @@ keyword or name, across the language pages and the pages of the installed functi
 a language keyword keeping a shared name (`fix` is the operator; `Fix` the function is
 found as a function). Every program that shows the reference needs that same index, so it
 belongs beside the pages it indexes rather than in each front end. Filed as
-DarkCollective/relix-core#95.
+DarkCollective/relix-core#95, and done: `relix doc` looks pages up in relix-docs'
+`ReferenceLookup`.
 
 ## 10. Decisions
 
