@@ -42,6 +42,9 @@ import java.util.stream.Stream;
  * the session together, so a view declared at an outer level reads whichever
  * {@code Orders} is nearest.
  *
+ * <p>A file in a project directory the user has not trusted is parsed but never defined
+ * (design §5.4): its declarations neither win nor shadow anything.
+ *
  * <p>Defining declares; it opens nothing. No connection is made and no file read until a
  * query references the name.
  */
@@ -61,8 +64,10 @@ public final class Catalog {
     private Catalog(List<CatalogFile> files) {
         this.files = List.copyOf(files);
         for (CatalogFile file : this.files) {
-            for (Declaration declaration : file.declarations()) {
-                nearest.put(declaration.key(), declaration);
+            if (file.trusted()) {
+                for (Declaration declaration : file.declarations()) {
+                    nearest.put(declaration.key(), declaration);
+                }
             }
         }
     }
@@ -81,20 +86,22 @@ public final class Catalog {
      *
      * @param levels the {@code .relix/} directories, outermost first
      * @param named  the {@code --catalog} and {@code $RELIX_CATALOG_PATH} files, farthest
-     *               first, absolute
+     *               first, absolute; always trusted, since the user named them
+     * @param trust  which directories may be loaded
      * @return the catalog
      * @throws CommandFailure with {@link ExitCode#ANALYSIS} when a file does not parse, and
      *                        with {@link ExitCode#ENVIRONMENT} when one cannot be read
      */
-    public static Catalog load(List<Path> levels, List<Path> named) {
+    public static Catalog load(List<Path> levels, List<Path> named, Trust trust) {
         List<CatalogFile> files = new ArrayList<>();
         for (Path level : levels) {
+            boolean trusted = trust.trusts(level);
             for (Path file : filesOf(level)) {
-                files.add(CatalogFile.read(file, level));
+                files.add(CatalogFile.read(file, level, trusted));
             }
         }
         for (Path file : named) {
-            files.add(CatalogFile.read(file, null));
+            files.add(CatalogFile.read(file, null, true));
         }
         return new Catalog(files);
     }
@@ -130,12 +137,23 @@ public final class Catalog {
     }
 
     /**
-     * Whether this catalog declares nothing at all.
+     * The declarations an untrusted file would have supplied: those whose name no loaded
+     * declaration of the same kind answers, nearest first.
      *
-     * @return {@code true} when no file holds a statement
+     * @return the declarations left out for want of trust
      */
-    public boolean isEmpty() {
-        return files.stream().allMatch(f -> f.statements().isEmpty());
+    public List<Declaration> withheld() {
+        List<Declaration> withheld = new ArrayList<>();
+        for (CatalogFile file : files) {
+            if (!file.trusted()) {
+                for (Declaration declaration : file.declarations()) {
+                    if (!nearest.containsKey(declaration.key())) {
+                        withheld.add(declaration);
+                    }
+                }
+            }
+        }
+        return withheld.reversed();
     }
 
     /**
@@ -191,6 +209,9 @@ public final class Catalog {
     public List<Statement> survivors() {
         List<Statement> kept = new ArrayList<>();
         for (CatalogFile file : files) {
+            if (!file.trusted()) {
+                continue;
+            }
             for (Statement statement : file.statements()) {
                 List<Declaration> declared = Declaration.of(statement, file);
                 if (declared.stream().allMatch(this::wins)) {

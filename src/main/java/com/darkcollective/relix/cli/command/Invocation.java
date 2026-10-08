@@ -18,6 +18,7 @@ package com.darkcollective.relix.cli.command;
 import com.darkcollective.relix.cli.CommandFailure;
 import com.darkcollective.relix.cli.ExitCode;
 import com.darkcollective.relix.cli.catalog.Catalog;
+import com.darkcollective.relix.cli.catalog.Trust;
 import com.darkcollective.relix.cli.config.Placeholders;
 import com.darkcollective.relix.cli.config.Profiles;
 import com.darkcollective.relix.cli.config.RelixDirectories;
@@ -66,6 +67,7 @@ final class Invocation {
     private final Reporter reporter;
     private final Path directory;
     private final List<Path> levels;
+    private final Trust trust;
     private final Relixrc relixrc;
     private final List<Path> catalogFiles;
     private Catalog catalog;
@@ -74,6 +76,18 @@ final class Invocation {
     private final Sandbox sandbox;
 
     Invocation(Host host, GlobalOptions options) {
+        this(host, options, true);
+    }
+
+    /**
+     * A run, settled.
+     *
+     * @param host     the process
+     * @param options  its global options
+     * @param announce whether to say which untrusted directories are skipped; not when
+     *                 the command is the one that trusts them
+     */
+    Invocation(Host host, GlobalOptions options, boolean announce) {
         this.host = host;
         this.options = options;
         this.reporter = new Reporter(host.err(), verbosity(options));
@@ -84,13 +98,24 @@ final class Invocation {
         requirePositive("--max-processed-rows", options.maxProcessedRows);
         this.sandbox = options.sandbox == null ? null : sandbox(directory.resolve(options.sandbox));
         this.levels = RelixDirectories.discover(directory, host.home());
-        this.relixrc = options.noCatalog ? Relixrc.none() : Relixrc.read(levels, reporter::warning);
+        this.trust = Trust.load(host.home(), trustAll(host));
+        List<Path> trusted = levels.stream().filter(trust::trusts).toList();
+        this.relixrc = options.noCatalog ? Relixrc.none() : Relixrc.read(trusted, reporter::warning);
         this.catalogFiles = catalogFiles(host, options, directory);
         String profile = options.profile != null ? options.profile
                 : host.variable(PROFILE_VARIABLE).or(() -> relixrc.get(Relixrc.PROFILE)).orElse(null);
+        if (announce) {
+            for (Path level : levels) {
+                if (!trust.trusts(level) && wouldRead(level, options.noCatalog, profile != null)) {
+                    Path project = level.getParent();
+                    reporter.warning("skipping " + level + ", which is not trusted; to load it: "
+                            + "relix catalog trust " + shellWord(project.toString()));
+                }
+            }
+        }
         Map<String, String> values = profile == null
                 ? Map.of()
-                : Profiles.select(profile, levels);
+                : Profiles.select(profile, trusted);
         this.placeholders = Placeholders.resolver(options.defines, values, host.environment());
     }
 
@@ -118,12 +143,22 @@ final class Invocation {
             List<Path> discovered = options.noCatalog ? List.of() : levels;
             catalog = discovered.isEmpty() && catalogFiles.isEmpty()
                     ? Catalog.empty()
-                    : Catalog.load(discovered, catalogFiles);
+                    : Catalog.load(discovered, catalogFiles, trust);
             for (var file : catalog.files()) {
                 reporter.notice("catalog " + file.path());
             }
         }
         return catalog;
+    }
+
+    /** What the user trusts. */
+    Trust trust() {
+        return trust;
+    }
+
+    /** The {@code .relix/} directories found from where the run starts, outermost first. */
+    List<Path> levels() {
+        return levels;
     }
 
     /** Whether {@code --remote} permits http(s) locations. */
@@ -209,6 +244,29 @@ final class Invocation {
             throw new CommandFailure(ExitCode.USAGE, "-C " + options.directory + ": not a directory");
         }
         return dir;
+    }
+
+    private static boolean trustAll(Host host) {
+        return host.variable(Trust.TRUST_ALL_VARIABLE)
+                .map(v -> v.equals("1") || v.equalsIgnoreCase("true"))
+                .orElse(false);
+    }
+
+    /** Whether a run would read anything from a {@code .relix/} directory, were it trusted. */
+    private static boolean wouldRead(Path level, boolean noCatalog, boolean profile) {
+        if (profile && Files.isRegularFile(level.resolve(Profiles.FILE_NAME))) {
+            return true;
+        }
+        return !noCatalog && (!Catalog.filesOf(level).isEmpty()
+                || Files.isRegularFile(level.resolve(Relixrc.FILE_NAME)));
+    }
+
+    /** A path as a shell word: quoted when it holds anything a shell would split or expand. */
+    static String shellWord(String path) {
+        if (path.matches("[A-Za-z0-9_@%+=:,./~-]+")) {
+            return path;
+        }
+        return "'" + path.replace("'", "'\\''") + "'";
     }
 
     /**

@@ -42,7 +42,7 @@ import java.util.concurrent.Callable;
             "Runs Relix relational-algebra scripts as a stage of a Unix pipeline.",
             "Rows go to standard output; everything else goes to standard error.",
             ""},
-        subcommands = RunCommand.class,
+        subcommands = {RunCommand.class, CatalogCommand.class},
         exitCodeListHeading = "%nExit status:%n",
         exitCodeList = {
             " 0:success",
@@ -50,7 +50,7 @@ import java.util.concurrent.Callable;
             " 2:usage error (bad option, nothing to run)",
             " 3:the script did not parse or analyse",
             " 4:execution failed (a data error, a limit hit)",
-            " 5:environment (a missing driver, a loose profiles.json, a connection refused)",
+            " 5:environment (a missing driver, an untrusted catalog, a connection refused)",
             "70:internal error in relix",
             "130:interrupted (SIGINT)",
             "141:standard output closed (SIGPIPE)"})
@@ -96,13 +96,23 @@ public final class RelixCommand implements Callable<Integer> {
      * @return the exit status
      */
     int run(ScriptOptions scripts, InputOptions inputs, OutputOptions output) {
-        Invocation invocation = new Invocation(host, options);
+        Invocation invocation = invocation(true);
         OutputOptions.Output settled = output.settle(host, invocation.relixrc().get(Relixrc.OUTPUT));
         InputOptions.Inputs bound = inputs.settle(invocation.directory(), invocation.remote());
         return new ScriptRunner(invocation, bound, settled, interruption)
                 .run(ScriptSource.resolve(scripts.expressions, scripts.files, host, invocation.directory(),
                         bound.readStdin()))
                 .status();
+    }
+
+    /**
+     * This invocation's global options, settled.
+     *
+     * @param announce whether to say which untrusted directories are skipped
+     * @return the run
+     */
+    Invocation invocation(boolean announce) {
+        return new Invocation(host, options, announce);
     }
 
     /** The command's and the engine's versions, for {@code --version}. */
