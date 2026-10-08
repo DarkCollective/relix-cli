@@ -27,13 +27,14 @@ import java.util.List;
 /**
  * The example scripts under {@code src/test/resources/examples}: real scripts, with
  * comments, inline tables, views and several queries each, that need nothing but
- * themselves to run.
+ * themselves to run. None reaches the network: a test over a live service fails when the
+ * service does.
  */
 public final class Examples {
 
     /** Every example, by file name. */
     public static final List<String> NAMES =
-            List.of("introspection.relix", "league.relix", "library.relix", "pokemon.relix");
+            List.of("introspection.relix", "league.relix", "library.relix");
 
     private Examples() {
     }

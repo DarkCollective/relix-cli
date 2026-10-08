@@ -140,6 +140,16 @@ class ReportCommandsTest {
         }
     }
 
+    @Test
+    @DisplayName("the examples declare nothing that reaches the network")
+    void offline() {
+        for (String example : EXAMPLES) {
+            assertThat(Examples.text(example)).as(example)
+                    .doesNotContainPattern("(?m)^[^-\\n]*\\bfrom\\s+(http|jdbc)\\b")
+                    .doesNotContainPattern("(?m)^\\s*connection\\b");
+        }
+    }
+
     @Nested
     @DisplayName("check")
     class Check {
@@ -147,8 +157,7 @@ class ReportCommandsTest {
         @Test
         @DisplayName("is silent and exits 0 over scripts that analyse")
         void clean() {
-            var result = cli().run(new String[] {"check", "introspection.relix", "league.relix",
-                "library.relix", "pokemon.relix"});
+            var result = cli().run("check", "introspection.relix", "league.relix", "library.relix");
 
             assertThat(result.status()).as(result.toString()).isZero();
             assertThat(result.out()).isEmpty();
@@ -267,11 +276,13 @@ class ReportCommandsTest {
         @Test
         @DisplayName("leaves a query as written, with a warning, when the engine cannot write its rewrite back")
         void unwritable() {
-            var result = cli().run("optimize", "pokemon.relix");
+            // The selection is pushed into the closure as its seed, which render() writes in
+            // a spelling the parser does not have (DarkCollective/relix-core#100).
+            var result = cli().run("optimize", "introspection.relix");
 
             assertThat(result.status()).isZero();
-            assertThat(result.err()).contains("pokemon.relix: PichuFuture: the engine cannot write its rewrite");
-            assertThat(result.out()).contains("query PichuFuture;");
+            assertThat(result.err()).contains("introspection.relix: <expression 5>: the engine cannot write its rewrite");
+            assertThat(result.out()).contains("query { π depends_on (σ dependent = \"Report\" (Lineage)) };");
         }
 
         @Test
