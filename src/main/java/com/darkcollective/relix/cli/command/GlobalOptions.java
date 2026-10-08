@@ -20,7 +20,9 @@ import picocli.CommandLine.ScopeType;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -44,6 +46,16 @@ final class GlobalOptions {
                 "Set one $${VAR} for this run; it beats the profile and the environment.",
                 "Not for secrets: it lands in shell history and ps."})
     Map<String, String> defines = new LinkedHashMap<>();
+
+    @Option(names = {"-N", "--no-catalog"}, scope = ScopeType.INHERIT,
+            description = "Ignore the .relix/ directories' catalogs and relixrc; --catalog files still load.")
+    boolean noCatalog;
+
+    @Option(names = "--catalog", paramLabel = "FILE", scope = ScopeType.INHERIT,
+            description = {
+                "Add a catalog file, nearer than the .relix/ directories' (repeatable;",
+                "also $RELIX_CATALOG_PATH, a list of files separated as PATH is)."})
+    List<Path> catalogs = new ArrayList<>();
 
     @Option(names = {"-q", "--quiet"}, scope = ScopeType.INHERIT,
             description = "Print errors only, not warnings.")

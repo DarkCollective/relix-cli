@@ -37,8 +37,9 @@ import java.util.stream.Stream;
 /**
  * Runs scripts, each in a session of its own, and writes their rows to standard output.
  *
- * <p>Each session first declares the inputs {@code -i} binds, so that the script can read
- * them; one that cannot be read fails the script as execution does.
+ * <p>Each session first defines the catalog (design §5), then declares the inputs
+ * {@code -i} binds, then runs the script, so that each of these can replace a name the one
+ * before it declared. An input that cannot be read fails the script as execution does.
  *
  * <p>A script is checked before it runs, and every diagnostic is reported, so a script
  * with three mistakes reports three; one with an error does not run. Each script is
@@ -92,6 +93,9 @@ final class ScriptRunner {
         Reporter reporter = invocation.reporter();
         try (Relix session = invocation.session(source.directory()).build()) {
             interruption.session(session);
+            if (!defineCatalog(source, session)) {
+                return ExitCode.ANALYSIS;
+            }
             if (!declareInputs(source, session)) {
                 return ExitCode.EXECUTION;
             }
@@ -128,6 +132,22 @@ final class ScriptRunner {
             throw e;
         } finally {
             interruption.session(null);
+        }
+    }
+
+    /**
+     * Defines the catalog's declarations on a session, before its inputs and its script,
+     * reporting why when they do not analyse.
+     *
+     * @return whether they were defined
+     */
+    private boolean defineCatalog(ScriptSource source, Relix session) {
+        try {
+            invocation.catalog().define(session);
+            return true;
+        } catch (RelixException e) {
+            invocation.reporter().error(source.name() + ": the catalog does not analyse: " + e.getMessage());
+            return false;
         }
     }
 
