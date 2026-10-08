@@ -80,8 +80,23 @@ public final class ScriptFormatter {
             return String.join("\n", lines);
         }
 
+        /** Whether a line is a table row: cells between pipes, perhaps a {@code --} comment after. */
         private static boolean isRow(String line) {
-            return line.length() >= 2 && line.startsWith("|") && line.endsWith("|");
+            String cells = cellsOf(line);
+            return cells.length() >= 2 && cells.startsWith("|") && cells.endsWith("|");
+        }
+
+        /** A row without the {@code --} comment after its last pipe, as the parser reads it. */
+        private static String cellsOf(String line) {
+            int last = line.lastIndexOf('|');
+            return last >= 0 && line.substring(last + 1).strip().startsWith("--")
+                    ? line.substring(0, last + 1)
+                    : line;
+        }
+
+        /** The {@code --} comment after a row's last pipe, or {@code ""}. */
+        private static String commentOf(String line) {
+            return line.substring(cellsOf(line).length()).strip();
         }
 
         private static void align(List<String> rows) {
@@ -89,7 +104,7 @@ public final class ScriptFormatter {
             List<Boolean> rules = new ArrayList<>();
             List<Integer> widths = new ArrayList<>();
             for (String row : rows) {
-                List<String> split = cells(row);
+                List<String> split = cells(cellsOf(row));
                 boolean rule = split.stream().allMatch(Tables::isRule);
                 cells.add(split);
                 rules.add(rule);
@@ -112,6 +127,10 @@ public final class ScriptFormatter {
                     } else {
                         line.append(' ').append(cell).append(" ".repeat(widths.get(c) - width(cell))).append(" |");
                     }
+                }
+                String comment = commentOf(rows.get(r));
+                if (!comment.isEmpty()) {
+                    line.append("  ").append(comment);
                 }
                 rows.set(r, line.toString());
             }
