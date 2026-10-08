@@ -91,8 +91,8 @@ public final class Main {
                         err.print("relix: " + failure.getMessage() + "\n");
                     } else if (code == ExitCode.USAGE) {
                         failed.usage(err);
-                    } else if (e instanceof RelixException) {
-                        err.print("relix: " + e.getMessage() + "\n");
+                    } else if (e instanceof RelixException failure) {
+                        err.print("relix: " + EngineMessages.of(failure) + "\n");
                     } else if (code == ExitCode.INTERNAL) {
                         err.print("relix: internal error; please report it with what follows\n");
                         e.printStackTrace(err);
