@@ -160,7 +160,9 @@ public final class CommandPages {
         if (handWritten != null) {
             md.append(handWritten.strip()).append('\n');
         }
-        return md.toString().replaceAll("\n{3,}", "\n\n").strip() + "\n";
+        // picocli wraps the synopsis with the platform's line separator; a page has LF
+        // endings everywhere, as it is checked in.
+        return md.toString().replace("\r\n", "\n").replaceAll("\n{3,}", "\n\n").strip() + "\n";
     }
 
     /** Usage, arguments, options and exit status, under headings of {@code level}. */
