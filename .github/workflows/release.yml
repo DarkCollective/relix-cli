@@ -1,0 +1,198 @@
+# Releases the command (design §7.3): a platform archive for each of macOS, Linux and
+# Windows, attached with their checksums to this repository's GitHub Release, and the
+# Homebrew formula and Scoop manifest that install them, pushed to the tap
+# (DarkCollective/homebrew-relix) and the bucket (DarkCollective/scoop-relix).
+#
+# A tag vX.Y.Z publishes X.Y.Z. A tag with a suffix (v1.2.0-rc1) publishes a pre-release
+# and leaves the tap and the bucket alone.
+#
+# Run from the Actions tab, it is a dry run: it builds and tests every archive, writes the
+# formula and the manifest and checks their checksums against the archives, and uploads
+# them as the run's `release-files` artifact. It publishes nothing, and since it may run
+# on develop, whose engine pin is a snapshot, it skips checkEnginePin.
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]*.[0-9]*.[0-9]*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version to build, without the v (a dry run publishes nothing)'
+        required: true
+        default: '0.0.0-dryrun'
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
+      stable: ${{ steps.version.outputs.stable }}
+    steps:
+      - id: version
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.ref_name }}
+          INPUT: ${{ inputs.version }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            version="${TAG#v}"
+            publish=true
+          else
+            version="$INPUT"
+            publish=false
+          fi
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::error::'$version' is not a version such as 1.2.0 or 1.2.0-rc1"
+            exit 1
+          fi
+          case "$version" in *-*) stable=false ;; *) stable=true ;; esac
+          {
+            echo "version=$version"
+            echo "publish=$publish"
+            echo "stable=$stable"
+          } >> "$GITHUB_OUTPUT"
+
+  package:
+    name: Package (${{ matrix.platform }})
+    needs: version
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: macos-latest, platform: macos-aarch64 }
+          - { os: macos-15-intel, platform: macos-x86_64 }
+          - { os: ubuntu-latest, platform: linux-x86_64 }
+          - { os: ubuntu-24.04-arm, platform: linux-aarch64 }
+          - { os: windows-latest, platform: windows-x86_64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      # A dry run may build develop, whose engine pin is a snapshot; a release may not.
+      SKIP_PIN: ${{ needs.version.outputs.publish != 'true' && '-x checkEnginePin' || '' }}
+    steps:
+      - uses: actions/checkout@v7
+      # Corretto's JDK carries the jmods jlink links from.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: corretto
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      # The gate, then the archive, then the archive's own tests: a pipeline through its
+      # launcher, the CDS archive mapped, the man pages rendered.
+      - name: Build, package and test the archive
+        shell: bash
+        run: ./gradlew clean build releaseArchive packageTest -PcliVersion="$VERSION" $SKIP_PIN
+      - name: Check the archive is this platform's
+        shell: bash
+        run: |
+          case "${{ matrix.platform }}" in windows-*) ext=zip ;; *) ext=tar.gz ;; esac
+          test -f "build/distributions/relix-$VERSION-${{ matrix.platform }}.$ext"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: archive-${{ matrix.platform }}
+          path: build/distributions/relix-*
+          if-no-files-found: error
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: reports-${{ matrix.platform }}
+          path: build/reports/
+          if-no-files-found: ignore
+
+  release-files:
+    name: Checksums, formula and manifest
+    needs: [version, package]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: archive-*
+          path: dist
+          merge-multiple: true
+      # Fails unless every archive the formula and the manifest name is in dist with the
+      # checksum they give it.
+      - run: python3 packaging/release.py "$VERSION" dist release-files
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-files
+          path: release-files/
+          if-no-files-found: error
+
+  publish:
+    name: Publish the release
+    needs: [version, release-files]
+    if: needs.version.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      STABLE: ${{ needs.version.outputs.stable }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: archive-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-files
+          path: release-files
+      - name: Create the GitHub Release
+        run: |
+          prerelease=()
+          if [ "$STABLE" != true ]; then prerelease=(--prerelease); fi
+          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "relix $VERSION" --generate-notes "${prerelease[@]}" \
+            dist/relix-"$VERSION"-* release-files/checksums.txt
+
+  tap:
+    name: Update the Homebrew tap and the Scoop bucket
+    needs: [version, publish]
+    if: needs.version.outputs.stable == 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-files
+          path: release-files
+      - name: Push the formula to DarkCollective/homebrew-relix
+        env:
+          TOKEN: ${{ secrets.HOMEBREW_TAP_PAT }}
+        run: |
+          git clone "https://x-access-token:${TOKEN}@github.com/DarkCollective/homebrew-relix.git" tap
+          mkdir -p tap/Formula
+          cp release-files/relix.rb tap/Formula/relix.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/relix.rb
+          git commit -m "relix $VERSION"
+          git push
+      - name: Push the manifest to DarkCollective/scoop-relix
+        env:
+          TOKEN: ${{ secrets.SCOOP_BUCKET_PAT }}
+        run: |
+          git clone "https://x-access-token:${TOKEN}@github.com/DarkCollective/scoop-relix.git" bucket
+          mkdir -p bucket/bucket
+          cp release-files/relix.json bucket/bucket/relix.json
+          cd bucket
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bucket/relix.json
+          git commit -m "relix $VERSION"
+          git push

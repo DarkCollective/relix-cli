@@ -7,7 +7,11 @@
 
 plugins {
     id 'java'
+    id 'application'
     id 'jacoco'
+    // The platform image (design §7.3). forceMerge folds the jars that are not proper
+    // modules into one that is, which jlink needs.
+    id 'org.beryx.jlink' version '4.1.1'
 }
 
 group = 'com.darkcollective.relix'
@@ -44,13 +48,30 @@ java {
     }
 }
 
+sourceSets {
+    // What generates the man pages and completion scripts the release archive carries.
+    // It runs in the build and ships in nothing.
+    packaging {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+    // The tests of the packaged command: they run its launcher, not its classes.
+    packageTest
+}
+
 configurations {
+    packagingImplementation.extendsFrom implementation
+    packagingRuntimeOnly.extendsFrom runtimeOnly
+
     // The pinned engine's manuals, which the documentation guards read.
     engineManuals {
         canBeConsumed = false
         transitive = false
     }
 }
+
+// The H2 driver: the image bundles it, and the package tests write their database with it.
+def h2Driver = 'com.h2database:h2:2.5.252'
 
 dependencies {
     // The engine, for the command and the library its embed API is.
@@ -68,10 +89,26 @@ dependencies {
     implementation 'info.picocli:picocli:4.7.7'
     annotationProcessor 'info.picocli:picocli-codegen:4.7.7'
 
+    // The one JDBC driver the image carries: the database that needs no setup. The
+    // engine finds it through DriverManager and nothing here names it; every other
+    // driver is installed with `relix drivers install`.
+    runtimeOnly h2Driver
+
     testImplementation platform('org.junit:junit-bom:6.1.3')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation 'org.assertj:assertj-core:3.27.7'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    packagingImplementation 'info.picocli:picocli-codegen:4.7.7'
+    packagingImplementation 'org.asciidoctor:asciidoctorj:3.0.1'
+
+    packageTestImplementation platform('org.junit:junit-bom:6.1.3')
+    packageTestImplementation 'org.junit.jupiter:junit-jupiter'
+    packageTestImplementation 'org.assertj:assertj-core:3.27.7'
+    packageTestRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // The database the pipeline test's catalog connects to is written with the driver
+    // the image bundles.
+    packageTestRuntimeOnly h2Driver
 
     engineManuals "com.darkcollective.relix:relix:${relixEngineVersion}:manuals@zip"
 }
@@ -195,4 +232,220 @@ jar {
                 'Implementation-Version': project.version,
                 'Relix-Engine-Version': relixEngineVersion)
     }
+}
+
+// ── The release archive (design §7.3) ─────────────────────────────────────────────────
+//
+//   ./gradlew releaseArchive    build/distributions/relix-<version>-<platform>.tar.gz
+//                               (.zip on Windows), for the platform the build runs on
+//   ./gradlew packageTest       runs the archive's launcher: a pipeline, the CDS
+//                               archive, the man pages
+//
+// The archive holds the jlink image (bin/relix, the runtime and an AppCDS archive),
+// man/man1, completions/ and the licence. Each platform's is built on that platform.
+
+application {
+    applicationName = 'relix'
+    mainModule = 'com.darkcollective.relix.cli'
+    mainClass = 'com.darkcollective.relix.cli.Main'
+}
+
+def os = org.gradle.internal.os.OperatingSystem.current()
+def arch = System.getProperty('os.arch') in ['aarch64', 'arm64'] ? 'aarch64' : 'x86_64'
+def platform = "${os.isMacOsX() ? 'macos' : os.isWindows() ? 'windows' : 'linux'}-${arch}"
+def releaseName = "relix-${version}"
+def imageDir = layout.buildDirectory.dir('image')
+def cdsArchive = 'lib/relix.jsa'
+
+// Each stage of a pipeline starts a JVM, so the image carries an AppCDS archive of the
+// classes a run loads, and the launcher maps it. The JVM's warnings go to standard error,
+// not to standard output where they would join the rows.
+def launcherJvmArgs = ['-XX:SharedArchiveFile={{BIN_DIR}}/../' + cdsArchive,
+                       '-Xlog:all=off', '-Xlog:all=warning:stderr']
+
+jlink {
+    options = ['--strip-debug', '--compress', 'zip-6', '--no-header-files', '--no-man-pages',
+               // The JDK's own CDS archive, which the application's extends.
+               '--generate-cds-archive',
+               // The solver is a provider nothing `requires`, so jlink would leave it out
+               // and OPTIMIZE would find no solver. It is named as a root.
+               '--add-modules', 'com.darkcollective.relix.solver.ojalgo']
+    launcher {
+        name = 'relix'
+        jvmArgs = launcherJvmArgs
+    }
+    // H2 is not a named module, and picocli is one only from Java 9's versioned entries;
+    // jlink takes neither, so both are merged into one module that is...
+    forceMerge('picocli', 'h2')
+    // ...which re-declares H2's driver, for DriverManager to find it in the image, and
+    // reads the JDK modules H2 may touch (JNDI data sources, JMX, logging).
+    mergedModule {
+        requires 'java.sql'
+        requires 'java.naming'
+        requires 'java.security.sasl'
+        requires 'java.management'
+        requires 'java.logging'
+        provides('java.sql.Driver').with('org.h2.Driver')
+    }
+}
+
+// The script the CDS archive is trained on: a run that parses, analyses and executes a
+// join and an aggregate over a bound CSV file, and prints tsv. The classes it loads are
+// the ones every run loads.
+def trainingDir = layout.buildDirectory.dir('cds-training')
+def writeTrainingRun = tasks.register('writeTrainingRun') {
+    description = 'Writes the script and data the AppCDS archive is trained on.'
+    def dir = trainingDir
+    outputs.dir(dir)
+    doLast {
+        def root = dir.get().asFile
+        root.deleteDir()
+        new File(root, 'home').mkdirs()
+        new File(root, 'people.csv').text = 'id,name,city\n1,ada,london\n2,bob,paris\n3,cy,london\n'
+        new File(root, 'training.relix').text = '''\
+Cities := [
+| city   | country |
+|--------|---------|
+| london | uk      |
+| paris  | fr      |
+];
+query { τ country (γ country, COUNT(*) → people (σ id > 0 (People ⋈ Cities))) };
+'''
+    }
+}
+
+tasks.named('jlink').configure {
+    dependsOn writeTrainingRun
+    def image = imageDir
+    def training = trainingDir
+    def jvmArgs = launcherJvmArgs
+    def archive = cdsArchive
+    def module = "${application.mainModule.get()}/${application.mainClass.get()}"
+    doLast {
+        def root = image.get().asFile
+        // The generated launcher resolves a symbolic link before finding the runtime
+        // beside it: Homebrew runs it through one, which is relative to its directory.
+        def script = new File(root, 'bin/relix')
+        if (script.exists()) {
+            script.text = script.text.replace('DIR="${0%/*}"', '''\
+LINK="$0"
+while [ -h "$LINK" ]; do
+    TARGET=$(readlink "$LINK")
+    case "$TARGET" in
+        /*) LINK="$TARGET" ;;
+        *) LINK="$(dirname "$LINK")/$TARGET" ;;
+    esac
+done
+DIR="$(cd "$(dirname "$LINK")" && pwd)"''')
+        }
+        // The Windows launcher would run from its own directory, which takes relative
+        // paths and .relix/ discovery away from the user's.
+        def batch = new File(root, 'bin/relix.bat')
+        if (batch.exists()) {
+            batch.text = batch.text.readLines()
+                    .findAll { !(it.trim() in ['pushd %DIR%', 'popd']) }
+                    .join('\r\n') + '\r\n'
+        }
+
+        // The training run, with the launcher's options but writing the archive instead
+        // of mapping it.
+        def dir = training.get().asFile
+        def java = new File(root, "bin/java${os.isWindows() ? '.exe' : ''}").absolutePath
+        def command = [java, "-XX:ArchiveClassesAtExit=${new File(root, archive)}"] +
+                jvmArgs.findAll { !it.startsWith('-XX:SharedArchiveFile') } +
+                ["-Duser.home=${new File(dir, 'home')}",
+                 '-m', module, '-o', 'tsv', '-i', 'People=csv:people.csv', 'training.relix']
+        def process = new ProcessBuilder(command*.toString()).directory(dir).redirectErrorStream(true).start()
+        def output = process.inputStream.getText('UTF-8')
+        if (process.waitFor() != 0 || !output.contains('uk\t2')) {
+            throw new GradleException("The AppCDS training run failed:\n${output}")
+        }
+        if (!new File(root, archive).isFile()) {
+            throw new GradleException("The AppCDS training run wrote no ${archive}:\n${output}")
+        }
+    }
+}
+
+// The man pages and completion scripts, from the command's picocli model.
+def releaseFilesDir = layout.buildDirectory.dir('release-files')
+def releaseFiles = tasks.register('releaseFiles', JavaExec) {
+    description = 'Generates the man pages and completion scripts from the command model.'
+    // The jar, not the classes: the man pages' version comes from its manifest.
+    classpath = files(tasks.named('jar')) + sourceSets.packaging.runtimeClasspath - sourceSets.main.output
+    mainClass = 'com.darkcollective.relix.cli.packaging.ReleaseFiles'
+    def dir = releaseFilesDir
+    outputs.dir(dir)
+    inputs.property('version', version.toString())
+    doFirst { dir.get().asFile.deleteDir() }
+    argumentProviders.add({
+        def root = dir.get().asFile
+        [new File(root, 'adoc').path, new File(root, 'man/man1').path, new File(root, 'completions').path]
+    } as CommandLineArgumentProvider)
+}
+
+def stageRelease = tasks.register('stageRelease', Sync) {
+    description = 'Lays out the release archive\'s contents in build/release.'
+    dependsOn tasks.named('jlink')
+    from(imageDir)
+    from(releaseFiles) {
+        include 'man/**', 'completions/**'
+    }
+    from(layout.projectDirectory) {
+        include 'LICENSE.txt', 'NOTICE', 'README.md'
+    }
+    def staged = layout.buildDirectory.dir("release/${releaseName}")
+    into staged
+    // The JDK's CDS archives are read-only, which a copy over them fails on.
+    doFirst { staged.get().asFile.deleteDir() }
+}
+
+def releaseArchive = tasks.register('releaseArchive', os.isWindows() ? Zip : Tar) {
+    group = 'distribution'
+    description = "Builds the release archive for this platform (${platform})."
+    from(stageRelease) {
+        into releaseName
+    }
+    archiveFileName = "${releaseName}-${platform}.${os.isWindows() ? 'zip' : 'tar.gz'}"
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+    if (!os.isWindows()) {
+        compression = Compression.GZIP
+    }
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    // The launcher, the runtime's binaries and jspawnhelper must stay executable; an
+    // archive otherwise gives every file the same mode.
+    useFileSystemPermissions()
+}
+
+// The archive, unpacked by the system's tar as a user or Homebrew unpacks it, so that
+// the tests run what ships rather than what was staged.
+def unpackedRelease = layout.buildDirectory.dir('package-test')
+def unpackRelease = tasks.register('unpackRelease', Exec) {
+    description = 'Unpacks the release archive into build/package-test with tar.'
+    def archive = releaseArchive.flatMap { it.archiveFile }
+    def dir = unpackedRelease
+    inputs.file(archive)
+    outputs.dir(dir)
+    doFirst {
+        def root = dir.get().asFile
+        root.deleteDir()
+        root.mkdirs()
+    }
+    // Windows' own tar is bsdtar, which reads a zip; a GNU tar earlier on the PATH does not.
+    executable os.isWindows() ? "${System.getenv('SystemRoot')}\\System32\\tar.exe" : 'tar'
+    argumentProviders.add({
+        ['-xf', archive.get().asFile.absolutePath, '-C', dir.get().asFile.absolutePath]
+    } as CommandLineArgumentProvider)
+}
+
+tasks.register('packageTest', Test) {
+    group = 'verification'
+    description = 'Runs the release archive\'s launcher: a pipeline, the CDS archive, the man pages.'
+    testClassesDirs = sourceSets.packageTest.output.classesDirs
+    classpath = sourceSets.packageTest.runtimeClasspath
+    useJUnitPlatform()
+    dependsOn unpackRelease
+    def unpacked = unpackedRelease.map { it.dir(releaseName) }
+    inputs.dir(unpackedRelease).withPropertyName('release')
+    systemProperty 'relix.release', unpacked.get().asFile.absolutePath
 }

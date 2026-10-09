@@ -1,0 +1,44 @@
+{
+    "##": "The relix manifest. The release workflow of DarkCollective/relix-cli writes it from packaging/scoop/relix.json there, with the release's version and checksum: change it there, since a change made in the bucket is overwritten by the next release.",
+    "version": "@VERSION@",
+    "description": "Run Relix relational-algebra scripts as a stage of a Unix pipeline",
+    "homepage": "https://github.com/DarkCollective/relix-cli",
+    "license": "Apache-2.0",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/DarkCollective/relix-cli/releases/download/v@VERSION@/relix-@VERSION@-windows-x86_64.zip",
+            "hash": "@SHA256:windows-x86_64@",
+            "extract_dir": "relix-@VERSION@"
+        }
+    },
+    "bin": "bin\\relix.bat",
+    "post_install": [
+        "$completion = Join-Path (appdir $app $global) 'current\\completions\\relix.ps1'",
+        "$marker = '# relix completion, added by scoop'",
+        "$line = \"if (Test-Path '$completion') { . '$completion' } $marker\"",
+        "$profileFile = $PROFILE.CurrentUserAllHosts",
+        "if (!(Test-Path $profileFile)) { New-Item -ItemType File -Force -Path $profileFile | Out-Null }",
+        "if (!(Select-String -Path $profileFile -SimpleMatch $marker -Quiet)) { Add-Content -Path $profileFile -Value $line }"
+    ],
+    "uninstaller": {
+        "script": [
+            "$profileFile = $PROFILE.CurrentUserAllHosts",
+            "if (Test-Path $profileFile) {",
+            "    $kept = Get-Content $profileFile | Where-Object { $_ -notlike '*# relix completion, added by scoop' }",
+            "    Set-Content -Path $profileFile -Value $kept",
+            "}"
+        ]
+    },
+    "notes": "Tab completion for relix is loaded by your PowerShell profile ($PROFILE.CurrentUserAllHosts); open a new session to use it.",
+    "checkver": {
+        "github": "https://github.com/DarkCollective/relix-cli"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/DarkCollective/relix-cli/releases/download/v$version/relix-$version-windows-x86_64.zip",
+                "extract_dir": "relix-$version"
+            }
+        }
+    }
+}
