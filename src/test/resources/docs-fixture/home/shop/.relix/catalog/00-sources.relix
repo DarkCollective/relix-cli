@@ -1,0 +1,10 @@
+-- The shop's data. A relative path resolves against this file's directory.
+source Customers from csv("../../data/customers.csv") {
+    header: true,
+    schema: { customer_id: NUMBER, name: STRING, city: STRING }
+};
+
+source Orders from csv("../../data/orders.csv") {
+    header: true,
+    schema: { order_id: NUMBER, customer_id: NUMBER, amount: NUMBER, status: STRING, placed: DATE }
+};

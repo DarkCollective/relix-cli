@@ -1,0 +1,11 @@
+-- The stock database. Its address and credentials come from placeholders.
+connection warehouse from database {
+    url:      "${WAREHOUSE_URL}",
+    user:     "${WAREHOUSE_USER}",
+    password: "${WAREHOUSE_PASSWORD}"
+};
+
+source Stock from warehouse {
+    table: "STOCK",
+    schema: { sku: STRING, on_hand: NUMBER }
+};

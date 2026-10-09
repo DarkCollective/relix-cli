@@ -1,0 +1,6 @@
+{
+  "dev": {
+    "WAREHOUSE_URL": "jdbc:h2:@HOME@/shop/data/warehouse",
+    "WAREHOUSE_USER": "shop"
+  }
+}

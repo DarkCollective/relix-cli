@@ -1,0 +1,2 @@
+-- The customers of one city, named when the script runs: relix -a city=London
+query { PROJECT name (SELECT city = $city (Customers)) };
