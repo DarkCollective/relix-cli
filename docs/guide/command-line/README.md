@@ -12,7 +12,7 @@ Every example in this section is run on each build of the command, against a sma
 project, and the block under it is what it printed. The command reference is generated
 from the same model as `relix --help` and the man pages.
 
-## Using the command
+## The command line
 
 Installing it, and the shape every command shares; then data in, rows out.
 
@@ -22,7 +22,7 @@ Installing it, and the shape every command shares; then data in, rows out.
 | [Binding inputs](inputs.md) | `-i` and its formats; standard input; inferred and given headings; inputs that never end; shadowing the catalog; query parameters with `-a` |
 | [Output formats](output.md) | `table`, `tsv`, `csv`, `ndjson`, `json` and `markdown`; NULLs and headers; scripts with several queries; `--fail-empty` and `--fail-rows`; messages; closed pipes and interrupts |
 
-## A project's context
+## Projects on the command line
 
 What a directory gives the commands run in it.
 
@@ -31,7 +31,7 @@ What a directory gives the commands run in it.
 | [The catalog](catalog.md) | `.relix/` directories and how they are found; trusting a project; a nearer declaration wins; inspecting the catalog; `--catalog`; `relixrc` |
 | [Secrets and profiles](secrets.md) | `${NAME}` placeholders; `profiles.json` and `-P`; the environment and `-D`; private profile files; what is never printed |
 
-## Recipes
+## Command-line recipes
 
 | Page | What it covers |
 |---|---|

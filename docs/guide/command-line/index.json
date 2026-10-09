@@ -1,12 +1,12 @@
 {
   "title": "The relix command line",
   "pages": [
-    {"path": "getting-started.md", "chapter": "Using the command", "title": "The relix command", "summary": "Installing; a first query; where the script comes from; the commands; diagnostics and exit status"},
-    {"path": "inputs.md", "chapter": "Using the command", "title": "Binding inputs", "summary": "`-i` and its formats; standard input; inferred and given headings; inputs that never end; shadowing the catalog; query parameters with `-a`"},
-    {"path": "output.md", "chapter": "Using the command", "title": "Output formats", "summary": "`table`, `tsv`, `csv`, `ndjson`, `json` and `markdown`; NULLs and headers; scripts with several queries; `--fail-empty` and `--fail-rows`; messages; closed pipes and interrupts"},
-    {"path": "catalog.md", "chapter": "A project's context", "title": "The catalog", "summary": "`.relix/` directories and how they are found; trusting a project; a nearer declaration wins; inspecting the catalog; `--catalog`; `relixrc`"},
-    {"path": "secrets.md", "chapter": "A project's context", "title": "Secrets and profiles", "summary": "`${NAME}` placeholders; `profiles.json` and `-P`; the environment and `-D`; private profile files; what is never printed"},
-    {"path": "pipelines.md", "chapter": "Recipes", "title": "Pipelines", "summary": "With `jq`, `awk`, `sort` and `head`; with `find` and `xargs`; scripts in here-documents; a data check in CI; optimising a script and reviewing the change"},
+    {"path": "getting-started.md", "chapter": "The command line", "title": "The relix command", "summary": "Installing; a first query; where the script comes from; the commands; diagnostics and exit status"},
+    {"path": "inputs.md", "chapter": "The command line", "title": "Binding inputs", "summary": "`-i` and its formats; standard input; inferred and given headings; inputs that never end; shadowing the catalog; query parameters with `-a`"},
+    {"path": "output.md", "chapter": "The command line", "title": "Output formats", "summary": "`table`, `tsv`, `csv`, `ndjson`, `json` and `markdown`; NULLs and headers; scripts with several queries; `--fail-empty` and `--fail-rows`; messages; closed pipes and interrupts"},
+    {"path": "catalog.md", "chapter": "Projects on the command line", "title": "The catalog", "summary": "`.relix/` directories and how they are found; trusting a project; a nearer declaration wins; inspecting the catalog; `--catalog`; `relixrc`"},
+    {"path": "secrets.md", "chapter": "Projects on the command line", "title": "Secrets and profiles", "summary": "`${NAME}` placeholders; `profiles.json` and `-P`; the environment and `-D`; private profile files; what is never printed"},
+    {"path": "pipelines.md", "chapter": "Command-line recipes", "title": "Pipelines", "summary": "With `jq`, `awk`, `sort` and `head`; with `find` and `xargs`; scripts in here-documents; a data check in CI; optimising a script and reviewing the change"},
     {"path": "commands/relix.md", "chapter": "Command reference", "title": "relix", "summary": "The global options every command takes; the exit statuses; the environment variables and files", "command": "relix"},
     {"path": "commands/run.md", "chapter": "Command reference", "title": "relix run", "summary": "Runs scripts and writes their queries' rows", "command": "relix run"},
     {"path": "commands/check.md", "chapter": "Command reference", "title": "relix check", "summary": "Analyses scripts without running them, and reports their problems", "command": "relix check"},
