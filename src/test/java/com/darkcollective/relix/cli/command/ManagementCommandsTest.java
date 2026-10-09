@@ -252,6 +252,20 @@ class ManagementCommandsTest {
         }
 
         @Test
+        @DisplayName("zsh's is a completion function too, for $fpath, that completes on its first call")
+        void zshFunction() {
+            String script = cli().run("completion", "zsh").out();
+
+            assertThat(script).startsWith("#compdef relix\n");
+            assertThat(script).endsWith("""
+                    if (( ${+compstate} )); then
+                        _bash_complete -F _complete_relix -o default
+                    fi
+                    """);
+            assertThat(script).contains("complete -F _complete_relix -o default relix");
+        }
+
+        @Test
         @DisplayName("an unknown shell is a usage error")
         void unknown() {
             var result = cli().run("completion", "tcsh");

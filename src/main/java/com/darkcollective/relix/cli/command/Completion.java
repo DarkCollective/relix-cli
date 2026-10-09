@@ -30,9 +30,10 @@ import java.util.Map;
  * Completion scripts for the command, generated from its picocli model, so that they
  * cannot drift from the options it parses (design §7.3).
  *
- * <p>bash's is picocli's own, which also runs under zsh through {@code bashcompinit}.
- * fish and PowerShell have none from picocli, so theirs are written here: each completes
- * the commands, then each command's subcommands and options.
+ * <p>bash's is picocli's own, which also runs under zsh through {@code bashcompinit}; zsh's
+ * wraps it so that it works both sourced and as {@code _relix} on {@code $fpath}, which is
+ * where Homebrew installs it. fish and PowerShell have none from picocli, so theirs are
+ * written here: each completes the commands, then each command's subcommands and options.
  */
 final class Completion {
 
@@ -62,10 +63,33 @@ final class Completion {
     static String script(Shell shell, CommandLine root) {
         String name = root.getCommandName();
         return switch (shell) {
-            case BASH, ZSH -> AutoComplete.bash(name, root);
+            case BASH -> AutoComplete.bash(name, root);
+            case ZSH -> zsh(name, root);
             case FISH -> fish(name, root.getCommandSpec());
             case POWERSHELL -> powershell(name, root.getCommandSpec());
         };
+    }
+
+    // -------------------------------------------------------------------------
+    // zsh
+    // -------------------------------------------------------------------------
+
+    /**
+     * bash's script, made a zsh completion function too. On {@code $fpath} the file is the
+     * body of {@code _relix}, which compinit binds to the command by its first line. Its
+     * first call defines the bash completion and rebinds the command to it, so it then
+     * completes the word it was called for; sourced, outside a completion, it does not.
+     */
+    private static String zsh(String name, CommandLine root) {
+        return "#compdef " + name + "\n"
+                + "# zsh completion for " + name + ", generated from its command model: bash's, run\n"
+                + "# through bashcompinit.\n"
+                + "# Install: " + name + " completion zsh > \"${fpath[1]}/_" + name + "\"\n"
+                + "#      or: source <(" + name + " completion zsh)\n\n"
+                + AutoComplete.bash(name, root)
+                + "\nif (( ${+compstate} )); then\n"
+                + "    _bash_complete -F _complete_" + name + " -o default\n"
+                + "fi\n";
     }
 
     // -------------------------------------------------------------------------
