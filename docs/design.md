@@ -407,6 +407,13 @@ version of it.
 `.relix/` tree and fixture files, comparing stdout and the exit status — so a page
 cannot be published with an example the command does not honour.
 
+The pages live in `docs/guide/command-line`, laid out as the engine's own manuals are
+(a `README.md` index of chapters and pages), with `index.json` as the machine-readable
+index. The site renders the section inside the engine's programming guide, at
+`guide/command-line/`, so a link out of it is written as if it sat in the engine's
+`docs/guide`. Until releases attach the archive, the site pins a commit of this
+repository and reads the same tree from it.
+
 ### 7.5 Tests
 
 Each command end-to-end through `Main` with captured streams; catalog discovery and

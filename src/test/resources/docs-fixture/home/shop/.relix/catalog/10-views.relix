@@ -1,0 +1,5 @@
+Completed := { SELECT status = 'completed' (Orders) };
+
+Spend := { GROUP customer_id, SUM(amount) -> total (Completed) };
+
+BigSpenders := { PROJECT name, total (Customers JOIN (SELECT total >= 200 (Spend))) };

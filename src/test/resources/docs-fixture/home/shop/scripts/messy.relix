@@ -1,0 +1,3 @@
+-- Orders worth a look
+Large:={select amount>100(Orders)};
+query {project order_id,amount (Large)};

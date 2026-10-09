@@ -1,5 +1,6 @@
 # Releases the command (design §7.3): a platform archive for each of macOS, Linux and
-# Windows, attached with their checksums to this repository's GitHub Release, and the
+# Windows, attached with their checksums to this repository's GitHub Release with the
+# command-line guide's archive (relix-<version>-docs.zip, design §7.4), and the
 # Homebrew formula and Scoop manifest that install them, pushed to the tap
 # (DarkCollective/homebrew-relix) and the bucket (DarkCollective/scoop-relix).
 #
@@ -89,6 +90,12 @@ jobs:
       - name: Build, package and test the archive
         shell: bash
         run: ./gradlew clean build releaseArchive packageTest -PcliVersion="$VERSION" $SKIP_PIN
+      # The command-line guide, the same on every platform, so it is built once. Its
+      # examples have just run in the build above.
+      - name: Build the command-line guide's archive
+        if: matrix.platform == 'linux-x86_64'
+        shell: bash
+        run: ./gradlew docsArchive -PcliVersion="$VERSION"
       - name: Check the archive is this platform's
         shell: bash
         run: |

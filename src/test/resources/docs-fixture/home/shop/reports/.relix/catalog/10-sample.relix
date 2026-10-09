@@ -1,0 +1,5 @@
+-- Reports are written against a fixed sample rather than the live orders.
+source Orders from csv("../../sample-orders.csv") {
+    header: true,
+    schema: { order_id: NUMBER, customer_id: NUMBER, amount: NUMBER, status: STRING, placed: DATE }
+};

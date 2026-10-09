@@ -57,6 +57,11 @@ sourceSets {
     }
     // The tests of the packaged command: they run its launcher, not its classes.
     packageTest
+    // CommandPagesTest regenerates the command pages to compare them with the checked-in ones.
+    test {
+        compileClasspath += sourceSets.packaging.output
+        runtimeClasspath += sourceSets.packaging.output
+    }
 }
 
 configurations {
@@ -175,6 +180,12 @@ test {
     dependsOn unpackEngineDocs
     inputs.dir(engineDocsDir).withPropertyName('engineDocs')
     systemProperty 'relix.engine.docs', engineDocsDir.get().asFile.absolutePath
+    // The command-line guide's pages, which the docs tests run and check: without these
+    // inputs a docs-only change would leave the tests UP-TO-DATE, passing without running.
+    inputs.dir('docs/guide/command-line').withPropertyName('guide')
+    inputs.dir('docs/command-examples').withPropertyName('commandExamples')
+    systemProperty 'relix.cli.guide', file('docs/guide/command-line').absolutePath
+    systemProperty 'relix.cli.commandExamples', file('docs/command-examples').absolutePath
     finalizedBy tasks.named('jacocoTestReport')
 }
 
@@ -381,6 +392,32 @@ def releaseFiles = tasks.register('releaseFiles', JavaExec) {
         def root = dir.get().asFile
         [new File(root, 'adoc').path, new File(root, 'man/man1').path, new File(root, 'completions').path]
     } as CommandLineArgumentProvider)
+}
+
+// ── The command-line guide (design §7.4) ──────────────────────────────────────────────
+//
+//   ./gradlew commandPages      rewrites docs/guide/command-line/commands/*.md and
+//                               index.json from the command's picocli model
+//   ./gradlew docsArchive       build/distributions/relix-<version>-docs.zip, the
+//                               section the site renders in its programming guide
+tasks.register('commandPages', JavaExec) {
+    group = 'documentation'
+    description = 'Rewrites the command pages of docs/guide/command-line from the command model.'
+    classpath = sourceSets.packaging.runtimeClasspath
+    mainClass = 'com.darkcollective.relix.cli.packaging.CommandPages'
+    args = [projectDir.absolutePath]
+}
+
+tasks.register('docsArchive', Zip) {
+    group = 'documentation'
+    description = 'Builds the command-line guide archive the site renders from.'
+    from('docs/guide/command-line') {
+        into 'command-line'
+    }
+    archiveFileName = "relix-${version}-docs.zip"
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
 }
 
 def stageRelease = tasks.register('stageRelease', Sync) {

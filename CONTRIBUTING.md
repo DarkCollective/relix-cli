@@ -189,6 +189,27 @@ because that is the interface a script or a pipeline depends on.
 A change to a command, an option or an exit status updates its help text, which is
 also what the manual page and the site's command reference are generated from.
 
+The command-line section of the programming guide is in
+[`docs/guide/command-line`](docs/guide/command-line/README.md); the site renders it,
+and each release attaches it as `relix-<version>-docs.zip`. Three things keep it true:
+
+- **The command pages are generated.** `docs/guide/command-line/commands/*.md` and
+  `index.json` come from the command's picocli model, followed by the hand-written
+  examples in `docs/command-examples/<command>.md`. After changing an option or one of
+  those files, run `./gradlew commandPages` and commit what it writes;
+  `GuideStructureTest` fails while they are stale.
+- **Every example runs.** A ```` ```shell ```` block is an example, and the plain block on
+  the line after it is what it prints on standard output; `GuideExamplesTest` runs it in
+  a copy of the fixture under `src/test/resources/docs-fixture` (the `~/shop` the pages
+  describe) and compares. An example exits 0 unless it ends `; echo "exit $?"`, which
+  prints its status for the page to show. Write commands a reader would type in a
+  ```` ```shell ```` block, never `bash` or `console`, and keep anything else — an install
+  command, a syntax summary — in a ```` ```text ```` block.
+- **Every link resolves**, to a page or a heading, here or in the engine's manuals:
+  the section sits at `docs/guide/command-line` in the engine's tree, so
+  `../secrets.md` is the guide's page and `../../reference/README.md` the language
+  reference. A new page is listed in the section's `README.md`.
+
 ## Questions
 
 Ask in [Discussions](https://github.com/DarkCollective/relix-cli/discussions).
