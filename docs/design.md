@@ -387,7 +387,10 @@ sees.
   `brew tap DarkCollective/relix` resolves) and the Scoop bucket
   (`DarkCollective/scoop-relix`) stay separate repositories, updated by the release
   job; they stay private until the first release and must be public from then on,
-  as must the archives they point at.
+  as must the archives they point at. The formula and the manifest are written whole
+  from templates in this repository's `packaging/`, with each release's checksums,
+  and a dry run of the release workflow checks those against the archives before
+  anything is published.
 - Windows: `isatty` via `System.console()`; `SIGPIPE` does not exist and the `EPIPE`
   path covers it; paths in `-i` accept both separators.
 
