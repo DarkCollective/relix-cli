@@ -19,7 +19,6 @@ import com.darkcollective.relix.cli.Cli;
 import com.darkcollective.relix.cli.Examples;
 import com.darkcollective.relix.embed.Relix;
 import com.darkcollective.relix.lang.ast.ScriptPrinter;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -197,8 +196,6 @@ class FmtTest {
         }
 
         @Test
-        @Disabled("the engine's ScriptPrinter drops a blank line between a comment and the "
-                + "statement or namespace after it (DarkCollective/relix-core#99 follow-up)")
         @DisplayName("keeps a blank line between a comment and what follows it")
         void blankAfterComment() {
             String text = "-- header\n\nnamespace demo;\n-- about N\n\nquery N;\n";
