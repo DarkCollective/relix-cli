@@ -1,0 +1,28 @@
+{
+  "title": "The relix command line",
+  "pages": [
+    {"path": "getting-started.md", "chapter": "Using the command", "title": "The relix command", "summary": "Installing; a first query; where the script comes from; the commands; diagnostics and exit status"},
+    {"path": "inputs.md", "chapter": "Using the command", "title": "Binding inputs", "summary": "`-i` and its formats; standard input; inferred and given headings; inputs that never end; shadowing the catalog; query parameters with `-a`"},
+    {"path": "output.md", "chapter": "Using the command", "title": "Output formats", "summary": "`table`, `tsv`, `csv`, `ndjson`, `json` and `markdown`; NULLs and headers; scripts with several queries; `--fail-empty` and `--fail-rows`; messages; closed pipes and interrupts"},
+    {"path": "catalog.md", "chapter": "A project's context", "title": "The catalog", "summary": "`.relix/` directories and how they are found; trusting a project; a nearer declaration wins; inspecting the catalog; `--catalog`; `relixrc`"},
+    {"path": "secrets.md", "chapter": "A project's context", "title": "Secrets and profiles", "summary": "`${NAME}` placeholders; `profiles.json` and `-P`; the environment and `-D`; private profile files; what is never printed"},
+    {"path": "pipelines.md", "chapter": "Recipes", "title": "Pipelines", "summary": "With `jq`, `awk`, `sort` and `head`; with `find` and `xargs`; scripts in here-documents; a data check in CI; optimising a script and reviewing the change"},
+    {"path": "commands/relix.md", "chapter": "Command reference", "title": "relix", "summary": "The global options every command takes; the exit statuses; the environment variables and files", "command": "relix"},
+    {"path": "commands/run.md", "chapter": "Command reference", "title": "relix run", "summary": "Runs scripts and writes their queries' rows", "command": "relix run"},
+    {"path": "commands/check.md", "chapter": "Command reference", "title": "relix check", "summary": "Analyses scripts without running them, and reports their problems", "command": "relix check"},
+    {"path": "commands/explain.md", "chapter": "Command reference", "title": "relix explain", "summary": "Prints each query's physical plan", "command": "relix explain"},
+    {"path": "commands/optimize.md", "chapter": "Command reference", "title": "relix optimize", "summary": "Prints the script with each query rewritten by the optimiser", "command": "relix optimize"},
+    {"path": "commands/trace.md", "chapter": "Command reference", "title": "relix trace", "summary": "Runs each query and prints what the engine rewrote, planned and ran", "command": "relix trace"},
+    {"path": "commands/bundle.md", "chapter": "Command reference", "title": "relix bundle", "summary": "Prints each script's JSON bundle of diagnostics, plans and events", "command": "relix bundle"},
+    {"path": "commands/ir.md", "chapter": "Command reference", "title": "relix ir", "summary": "Prints the symbols, views and queries the analyser made of a script", "command": "relix ir"},
+    {"path": "commands/provenance.md", "chapter": "Command reference", "title": "relix provenance", "summary": "Runs each query and annotates each row with where it came from", "command": "relix provenance"},
+    {"path": "commands/fmt.md", "chapter": "Command reference", "title": "relix fmt", "summary": "Prints scripts canonically, keeping their comments", "command": "relix fmt"},
+    {"path": "commands/catalog.md", "chapter": "Command reference", "title": "relix catalog", "summary": "Lists the catalog's files, relations, columns and declarations; trusts a project", "command": "relix catalog", "subcommands": [{"command": "relix catalog files", "anchor": "relix-catalog-files"}, {"command": "relix catalog ls", "anchor": "relix-catalog-ls"}, {"command": "relix catalog schema", "anchor": "relix-catalog-schema"}, {"command": "relix catalog where", "anchor": "relix-catalog-where"}, {"command": "relix catalog trust", "anchor": "relix-catalog-trust"}]},
+    {"path": "commands/drivers.md", "chapter": "Command reference", "title": "relix drivers", "summary": "Lists and installs JDBC drivers", "command": "relix drivers", "subcommands": [{"command": "relix drivers ls", "anchor": "relix-drivers-ls"}, {"command": "relix drivers install", "anchor": "relix-drivers-install"}]},
+    {"path": "commands/connectors.md", "chapter": "Command reference", "title": "relix connectors", "summary": "Lists and installs connector plugins", "command": "relix connectors", "subcommands": [{"command": "relix connectors ls", "anchor": "relix-connectors-ls"}, {"command": "relix connectors install", "anchor": "relix-connectors-install"}]},
+    {"path": "commands/doc.md", "chapter": "Command reference", "title": "relix doc", "summary": "Shows a page of the language reference", "command": "relix doc"},
+    {"path": "commands/help.md", "chapter": "Command reference", "title": "relix help", "summary": "Prints a command's usage", "command": "relix help"},
+    {"path": "commands/version.md", "chapter": "Command reference", "title": "relix version", "summary": "Prints the versions of the command and of the engine", "command": "relix version"},
+    {"path": "commands/completion.md", "chapter": "Command reference", "title": "relix completion", "summary": "Prints a completion script for bash, zsh, fish or PowerShell", "command": "relix completion"}
+  ]
+}

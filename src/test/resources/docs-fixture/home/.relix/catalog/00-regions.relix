@@ -1,0 +1,8 @@
+-- Your own tables: every directory under your home sees them.
+Regions := [
+| city   | region     |
+|--------|------------|
+| London | South East |
+| Leeds  | North      |
+| York   | North      |
+];
