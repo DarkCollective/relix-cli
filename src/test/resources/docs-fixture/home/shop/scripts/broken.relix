@@ -1,0 +1,1 @@
+query { SELECT amount > 100 (Ordrs) };

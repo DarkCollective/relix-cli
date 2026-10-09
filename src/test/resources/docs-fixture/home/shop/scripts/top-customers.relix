@@ -1,0 +1,2 @@
+-- The customers who have spent the most, best first.
+query { SORT total DESC (PROJECT name, total (Customers JOIN Spend)) };

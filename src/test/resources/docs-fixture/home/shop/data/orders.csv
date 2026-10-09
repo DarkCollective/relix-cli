@@ -1,0 +1,5 @@
+order_id,customer_id,amount,status,placed
+1,1,120,completed,2026-09-02
+2,1,80,completed,2026-09-14
+3,2,50,pending,2026-09-20
+4,3,200,completed,2026-10-01

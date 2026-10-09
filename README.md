@@ -13,6 +13,10 @@ It is a front end to the Relix engine,
 [relix-core](https://github.com/DarkCollective/relix-core), and reaches it only through
 the engine's published API.
 
+Its documentation is the command-line section of the Relix programming guide, in
+[`docs/guide/command-line`](docs/guide/command-line/README.md), published on the
+[Relix site](https://relix.darkcollective.com/guide/index.html).
+
 ## Status
 
 Under development. There is no release yet, and the command line described above is
