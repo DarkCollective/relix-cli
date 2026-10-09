@@ -222,7 +222,9 @@ final class ExampleRunner implements AutoCloseable {
         env.put("HOME", home.toString());
         env.put("NO_COLOR", "1");
         env.put("TZ", "UTC");
-        env.put("LC_ALL", "C");
+        // A UTF-8 locale, as a reader's terminal has: on Linux the JVM decodes its
+        // arguments by the locale, and `relix doc σ` would otherwise not say σ.
+        env.put("LC_ALL", System.getProperty("os.name").startsWith("Mac") ? "en_US.UTF-8" : "C.UTF-8");
         env.put("PAGER", "cat");
         return env;
     }
