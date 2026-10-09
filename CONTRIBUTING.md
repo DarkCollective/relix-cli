@@ -118,6 +118,22 @@ below. You need no Java 21 installed beforehand: Gradle provisions it.
   the build unpacks into `build/engine-docs`. A page that disagrees is fixed in
   relix-core.
 
+### The release archive
+
+The command ships as a platform archive: a jlink image with an AppCDS archive, the man
+pages and the completion scripts (design §7.3). CI also runs its tests on each
+platform, after `build`:
+
+```bash
+./gradlew packageTest
+```
+
+It builds the archive (`releaseArchive`, a minute or so), unpacks it with the system's
+`tar`, and runs the launcher it holds: a script on standard input over a catalog in a
+temporary tree, OPTIMIZE and `relix doc` (each finds a provider that jlink would leave
+out unnoticed), `-Xshare:on` (which fails unless the CDS archive is used), and `man` over
+every page. The man pages need `man` installed, and are not checked on Windows.
+
 ### Building against a local engine checkout
 
 To try an engine change before it is published, build against your relix-core
@@ -137,6 +153,24 @@ The checkout's build runs under this repository's Gradle, so it needs a relix-co
 that builds on Gradle 9. An older one fails while configuring, in a plugin that
 Gradle 9 broke (for example `info.solidsoft.pitest`, which reports an unknown
 property `baseDir`).
+
+### Cutting a release (maintainers)
+
+1. Pin a released engine in `build.gradle` (`checkEnginePin` refuses a snapshot) and
+   promote to `main`.
+2. Run the **Release** workflow from the Actions tab with the version. It is a dry run:
+   it builds and tests the five platform archives, writes the Homebrew formula and the
+   Scoop manifest from [`packaging/`](packaging), checks their checksums against the
+   archives, and uploads them as the `release-files` artifact. Nothing is published.
+3. Tag `main`: `git tag -a v1.2.0 -m "relix 1.2.0" && git push origin v1.2.0`. The
+   workflow runs again, attaches the archives and `checksums.txt` to the GitHub Release,
+   and pushes the formula to `DarkCollective/homebrew-relix` and the manifest to
+   `DarkCollective/scoop-relix`, with the `HOMEBREW_TAP_PAT` and `SCOOP_BUCKET_PAT`
+   secrets. A tag with a suffix (`v1.2.0-rc1`) makes a pre-release and leaves the tap and
+   the bucket alone.
+
+The formula and the manifest are written whole from `packaging/` on every release, so a
+change to either is made there, not in the tap or the bucket.
 
 ## Branches and commits
 
