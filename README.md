@@ -38,12 +38,16 @@ self-contained image (no Java needed to run it) with `bin/relix`, the man pages 
 
 ## Installing
 
-Once there is a release:
+With Homebrew (version 7 loads a formula from a tap outside Homebrew only once you
+trust it):
 
 ```bash
 brew tap DarkCollective/relix
+brew trust --formula darkcollective/relix/relix
 brew install relix
 ```
+
+With Scoop:
 
 ```powershell
 scoop bucket add relix https://github.com/DarkCollective/scoop-relix
