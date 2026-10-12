@@ -41,7 +41,8 @@ self-contained image (no Java needed to run it) with `bin/relix`, the man pages 
 Once there is a release:
 
 ```bash
-brew install DarkCollective/relix/relix
+brew tap DarkCollective/relix
+brew install relix
 ```
 
 ```powershell
