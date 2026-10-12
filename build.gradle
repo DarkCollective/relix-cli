@@ -20,10 +20,11 @@ version = findProperty('cliVersion') ?: '0.1.0-SNAPSHOT'
 
 // The engine pin: the one place the engine's version is named.
 //
-// `develop` tracks the engine's own develop branch, which relix-core publishes to Central's
-// snapshot repository on every push, so that what this command needs reaches it before the
-// next release candidate is cut. A release pins a released engine (checkEnginePin).
-ext.relixEngineVersion = '1.0.0-SNAPSHOT'
+// `develop` pins a released engine while one has everything this command needs. When the
+// command needs engine work that is not yet released, it tracks the engine's own develop
+// branch instead (1.0.0-SNAPSHOT), which relix-core publishes to Central's snapshot
+// repository on every push. A release pins a released engine (checkEnginePin).
+ext.relixEngineVersion = '1.0.0-rc9'
 
 def engineIsSnapshot = relixEngineVersion.endsWith('-SNAPSHOT')
 

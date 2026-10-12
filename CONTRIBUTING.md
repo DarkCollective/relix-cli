@@ -106,9 +106,11 @@ below. You need no Java 21 installed beforehand: Gradle provisions it.
   source set, which is a module; `EngineBoundaryTest` enforces it for every source
   set, tests included. Run it alone with `./gradlew test --tests '*EngineBoundaryTest'`.
 - **The engine pin.** `relixEngineVersion` in `build.gradle` is the one place the
-  engine's version is named. On `develop` it is `1.0.0-SNAPSHOT`, resolved from
-  Central's snapshot repository, which relix-core publishes to on every push to its
-  own `develop`. `checkEnginePin` fails a release build that still pins a snapshot:
+  engine's version is named. On `develop` it is a released engine while one has
+  everything the command needs, and `1.0.0-SNAPSHOT` while it needs engine work that
+  is not yet released, resolved from Central's snapshot repository, which relix-core
+  publishes to on every push to its own `develop`. `checkEnginePin` fails a release
+  build that still pins a snapshot:
   `./gradlew checkEnginePin -PcliVersion=<release version>`.
 - **One module, no library.** The module exports nothing (`ModuleShapeTest`) and
   the build publishes no Maven artifact (`checkNoPublication`).
