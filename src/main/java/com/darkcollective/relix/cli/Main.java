@@ -79,6 +79,7 @@ public final class Main {
                 .setOut(out)
                 .setErr(err)
                 .setPosixClusteredShortOptionsAllowed(true)
+                .setColorScheme(CommandLine.Help.defaultColorScheme(helpColors(host)))
                 .setParameterExceptionHandler((e, ignored) -> {
                     err.print("relix: " + e.getMessage() + "\n");
                     err.print("Try 'relix --help' for more information.\n");
@@ -104,6 +105,21 @@ public final class Main {
         out.flush();
         err.flush();
         return status;
+    }
+
+    /**
+     * Whether usage help is coloured: on the terms {@code --color=auto} colours rows, when
+     * standard output is a terminal and {@code $NO_COLOR} is not set. picocli's own
+     * detection reads the real process rather than the host, and takes an MSYS or Cygwin
+     * {@code TERM} for a terminal, so in Git Bash on Windows it coloured help written to a
+     * pipe.
+     *
+     * @param host the process
+     * @return {@code ON} or {@code OFF}, never {@code AUTO}
+     */
+    static CommandLine.Help.Ansi helpColors(Host host) {
+        return host.stdoutIsTerminal() && host.variable("NO_COLOR").isEmpty()
+                ? CommandLine.Help.Ansi.ON : CommandLine.Help.Ansi.OFF;
     }
 
     /**

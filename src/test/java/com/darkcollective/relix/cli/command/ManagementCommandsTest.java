@@ -75,16 +75,24 @@ class ManagementCommandsTest {
         @Test
         @DisplayName("prints a command's usage to stdout")
         void command() {
-            var result = cli().run("help", "fmt");
+            var result = cli().piped().run("help", "fmt");
 
             assertThat(result.status()).isZero();
             assertThat(result.out()).startsWith("Usage: relix fmt").contains("--keywords");
         }
 
         @Test
+        @DisplayName("colours usage on a terminal, and not in a pipe or with $NO_COLOR, wherever it runs")
+        void colours() {
+            assertThat(cli().run("help", "fmt").out()).startsWith("Usage: \u001B[");
+            assertThat(cli().piped().run("help", "fmt").out()).doesNotContain("\u001B");
+            assertThat(cli().env("NO_COLOR", "1").run("help", "fmt").out()).doesNotContain("\u001B");
+        }
+
+        @Test
         @DisplayName("prints the main usage, listing every command, with no COMMAND")
         void main() {
-            var result = cli().run("help");
+            var result = cli().piped().run("help");
 
             assertThat(result.status()).isZero();
             assertThat(result.out()).startsWith("Usage: relix");
