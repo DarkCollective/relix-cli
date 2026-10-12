@@ -110,7 +110,7 @@ class ScriptSourcesTest {
     @Test
     @DisplayName("with nothing named and a terminal on stdin, usage goes to stderr and the exit is 2")
     void nothingToRun() {
-        var result = Cli.in(dir).run();
+        var result = Cli.in(dir).piped().run();
 
         assertThat(result.status()).isEqualTo(2);
         assertThat(result.out()).isEmpty();
