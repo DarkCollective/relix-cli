@@ -39,11 +39,11 @@ self-contained image (no Java needed to run it) with `bin/relix`, the man pages 
 ## Installing
 
 With Homebrew (version 7 loads a formula from a tap outside Homebrew only once you
-trust the tap):
+trust it):
 
 ```bash
 brew tap DarkCollective/relix
-brew trust darkcollective/relix
+brew trust --formula darkcollective/relix/relix
 brew install relix
 ```
 

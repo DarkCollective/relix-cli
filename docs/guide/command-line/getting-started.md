@@ -20,13 +20,13 @@ On macOS and Linux, with Homebrew:
 
 ```text
 brew tap DarkCollective/relix
-brew trust darkcollective/relix
+brew trust --formula darkcollective/relix/relix
 brew install relix
 ```
 
-Homebrew 7 loads a formula from a tap outside Homebrew only once you trust the tap, which
-is what `brew trust` does. A Homebrew without a `brew trust` command does not ask for it;
-skip that line.
+Homebrew 7 loads a formula from a tap outside Homebrew only once you trust it, which is
+what `brew trust` does. `--formula` trusts the `relix` formula alone rather than the whole
+tap. A Homebrew without a `brew trust` command does not ask for it; skip that line.
 
 On Windows, with Scoop:
 
