@@ -19,7 +19,8 @@ PowerShell. Nothing else needs to be installed, and no Java is needed on the mac
 On macOS and Linux, with Homebrew:
 
 ```text
-brew install DarkCollective/relix/relix
+brew tap DarkCollective/relix
+brew install relix
 ```
 
 On Windows, with Scoop:
