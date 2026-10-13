@@ -35,7 +35,7 @@ What a directory gives the commands run in it.
 
 | Page | What it covers |
 |---|---|
-| [Pipelines](pipelines.md) | With `jq`, `awk`, `sort` and `head`; with `find` and `xargs`; scripts in here-documents; a data check in CI; optimising a script and reviewing the change |
+| [Pipelines](pipelines.md) | With `jq`, `awk`, `sort` and `head`; another program's output as a table; one `relix` into another; `tee`; with `find`, `xargs` and shell loops; scripts in here-documents; data checks in CI, comparing snapshots, and a GitHub Actions workflow; optimising a script and reviewing the change |
 
 ## Command reference
 
