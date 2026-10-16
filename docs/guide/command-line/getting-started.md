@@ -183,6 +183,7 @@ of its own, and each writes one thing to standard output:
 | [`relix fmt`](commands/fmt.md) | the script, printed canonically |
 | [`relix init`](commands/init.md) | nothing; it creates a project's `.relix/` directory |
 | [`relix catalog`](commands/catalog.md) | the catalog's files, relations, columns and trust |
+| [`relix source`](commands/source.md), [`relix connection`](commands/connection.md) | the sources and connections, and declaring, changing, removing and testing them |
 | [`relix profiles`](commands/profiles.md) | the profiles' variables, and setting them; a value only with `get` |
 | [`relix drivers`](commands/drivers.md), [`relix connectors`](commands/connectors.md) | the JDBC drivers and connector plugins, and installing them |
 | [`relix doc`](commands/doc.md) | a page of the language reference |
