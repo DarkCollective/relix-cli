@@ -27,6 +27,7 @@ import com.darkcollective.relix.value.StructValue;
 import com.darkcollective.relix.value.TimeValue;
 import com.darkcollective.relix.value.TimestampValue;
 import com.darkcollective.relix.value.Value;
+import com.darkcollective.relix.value.ZonedTimestampValue;
 import com.darkcollective.relix.symbol.ColumnDefinition;
 import com.darkcollective.relix.symbol.ScalarType;
 import com.darkcollective.relix.symbol.Schema;
@@ -366,6 +367,17 @@ final class OutputFormatTest {
                     row(schema, BooleanValue.of(true), NullValue.INSTANCE)));
 
             assertThat(out).contains("{\"flag\":true,\"note\":null}");
+        }
+
+        @Test
+        @DisplayName("renders a zoned timestamp as an ISO string that keeps its offset")
+        void zonedTimestamp() {
+            Schema schema = new Schema(List.of(new ColumnDefinition("at", ScalarType.TIMESTAMPTZ)));
+            String out = render(OutputFormat.JSON, schema, List.of(row(schema,
+                    new ZonedTimestampValue(java.time.OffsetDateTime.parse("2026-03-01T09:00:00+02:00")))));
+
+            assertThat(out).contains("{\"at\":\"2026-03-01T09:00")
+                    .contains("+02:00\"}");
         }
 
         @Test

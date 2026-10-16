@@ -27,6 +27,7 @@ import com.darkcollective.relix.value.StructValue;
 import com.darkcollective.relix.value.TimeValue;
 import com.darkcollective.relix.value.TimestampValue;
 import com.darkcollective.relix.value.Value;
+import com.darkcollective.relix.value.ZonedTimestampValue;
 import com.darkcollective.relix.symbol.ColumnDefinition;
 import com.darkcollective.relix.symbol.Schema;
 
@@ -442,6 +443,7 @@ public enum OutputFormat {
             case DateValue d          -> JsonText.quote(d.asDisplayString());
             case TimeValue t          -> JsonText.quote(t.asDisplayString());
             case TimestampValue ts    -> JsonText.quote(ts.asDisplayString());
+            case ZonedTimestampValue z -> JsonText.quote(z.asDisplayString());
             case DurationValue du     -> JsonText.quote(du.asDisplayString());
         };
     }
