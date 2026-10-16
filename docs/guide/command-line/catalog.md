@@ -362,3 +362,50 @@ directory	state
 A directory that already has a `.relix/` is refused with exit status 2: `init` makes a
 new project and never changes one. Started outside your home directory, it warns that
 only the working directory's own `.relix/` is read there.
+
+## Declaring sources and connections
+
+[`relix source`](commands/source.md) and [`relix connection`](commands/connection.md)
+declare data without a catalog file written by hand. The two mirror the language's two
+declarations: a source is a relation, and a connection is what several sources share,
+such as a database and its credentials. Both take `add`, `ls`, `edit`, `rm` and `test`:
+
+```shell
+cd ~/stall
+relix connection add shop database --url='${SHOP_URL}' --user='${SHOP_USER}' --password='${SHOP_PASSWORD}'
+relix source add Orders csv ~/shop/data/orders.csv --infer-schema
+relix source ls -o tsv
+```
+```
+name	kind	location	file
+Orders	csv	~/shop/data/orders.csv	~/stall/.relix/catalog/00-source-Orders.relix
+```
+
+Each `add` writes one declaration to a file of its own, `catalog/00-source-NAME.relix` or
+`catalog/00-connection-NAME.relix`, printed as `relix fmt` prints it, and every option of
+the declaration is a flag: `--OPTION=VALUE`, or `--OPTION` alone for `true`. A secret is
+written as a `${NAME}` placeholder and never as its value, which the command refuses. It
+writes the nearest project's catalog, or with `--global` your own `~/.relix`. A name an
+outer level declares is allowed, as the overlay allows it, and warned about.
+
+One declaration to a file is what lets `edit` and `rm` change it safely. A declaration
+written by hand beside others in its file is reported with its file and line rather than
+touched; `edit NAME --editor` opens it in `$EDITOR` there. `rm` refuses a name another
+declaration reads, unless `--force`. Views and `def`s have no command: they are Relix
+code, and an editor is the tool for code.
+
+Changing a file under a trusted project would untrust it, so these commands, `init` and
+[`relix profiles`](secrets.md#setting-profile-values) look first: a project that is
+trusted, and unchanged since, is trusted again after the change, and any other stays
+untrusted, so a change someone else made is still reviewed. `relix catalog trust --list`
+shows the project still trusted:
+
+```shell
+relix catalog trust --list -o tsv
+```
+```
+directory	state
+~/shop	trusted
+~/shop/reports	trusted
+~/stall	trusted
+```

@@ -73,6 +73,17 @@ public record Declaration(String name, Kind kind, Statement statement, CatalogFi
         }
 
         /**
+         * Whether a declaration of this kind and one of {@code other} compete for a name,
+         * so that the nearer replaces the farther.
+         *
+         * @param other another kind
+         * @return {@code true} when they share a space of names
+         */
+        public boolean sameSpace(Kind other) {
+            return space == other.space;
+        }
+
+        /**
          * The kind as {@code relix catalog} prints it.
          *
          * @return its lower-case name, such as {@code source} or {@code relation-function}
