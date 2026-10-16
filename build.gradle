@@ -24,7 +24,8 @@ version = findProperty('cliVersion') ?: '0.1.0-SNAPSHOT'
 // command needs engine work that is not yet released, it tracks the engine's own develop
 // branch instead (1.0.0-SNAPSHOT), which relix-core publishes to Central's snapshot
 // repository on every push. A release pins a released engine (checkEnginePin).
-ext.relixEngineVersion = '1.0.0-rc9'
+// -PrelixEngineVersion=<v> overrides it for one build, to try a candidate engine.
+ext.relixEngineVersion = (findProperty('relixEngineVersion') ?: '1.0.0-SNAPSHOT') as String
 
 def engineIsSnapshot = relixEngineVersion.endsWith('-SNAPSHOT')
 
