@@ -61,6 +61,7 @@ relix [GLOBAL OPTIONS] [RUN OPTIONS] [SCRIPT...]       # `run` is the default co
 | `relix fmt` | the script, printed canonically (`--glyphs`/`--keywords`) | *new* |
 | `relix init [DIR]` | nothing: creates a project's `.relix/` (`--root`, `-o`, `-P`) and trusts it | *new* (§5.1) |
 | `relix catalog` | `ls`, `schema NAME`, `where NAME`, `files`, `trust` | *new* (§5) |
+| `relix source`, `relix connection` | `add`, `ls`, `edit`, `rm`, `test`: declarations from flags (§5.3) | *new* |
 | `relix profiles` | `ls` (profile, variable, file; never a value), `set`, `get`, `rm` | `relix env` |
 | `relix drivers` | `ls`, `install NAME` | `--download-drivers` |
 | `relix connectors` | `ls`, `install NAME` | `relix connectors`, `--download-connectors` |
@@ -264,6 +265,17 @@ relix catalog ls             # name, kind, arity, defining file  (tsv in a pipe)
 relix catalog schema Orders  # columns and types
 relix catalog where Orders   # the declaration that won, and the ones it shadowed
 ```
+
+`relix source` and `relix connection` (`add | ls | edit | rm | test`) declare data from
+flags: `add NAME KIND|CONNECTION [LOCATION]`, every other option a `--OPTION=VALUE` flag,
+`--infer-schema` to read a CSV file's or a table's columns. Each `add` writes one
+declaration to `catalog/00-source-<name>.relix` or `00-connection-<name>.relix`, as
+`relix fmt` prints it; one declaration per file is what makes `edit` and `rm` safe, and a
+declaration beside others is reported (file and line) rather than touched. A secret is
+written as a `${…}` placeholder, never a value. `rm` refuses a name another declaration
+reads unless `--force`. `test` reads one row per source (or opens each database
+connection) under the profile and exits 5 when one fails. `--global` writes `~/.relix`.
+A JSON source is schema-on-read and declares no schema, so it takes no `--infer-schema`.
 
 `catalog ls` and `schema` are queries over the engine's own introspection relations
 (`relix.relations`, `relix.columns`), run through the same row renderers, so they come

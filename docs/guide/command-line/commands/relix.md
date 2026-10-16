@@ -76,6 +76,8 @@ Every command takes these, before or after its name.
 | [`relix fmt`](fmt.md) | Prints scripts canonically, keeping their comments. |
 | [`relix init`](init.md) | Creates the .relix/ directory of DIR (default: the working directory): an empty catalog/, a profiles.json only you can read, a .gitignore that keeps profiles.json out of version control, and relixrc and root when asked for: -o and -P (the global option) write a relixrc with those defaults, and the profile -P names is defined, empty, in profiles.json. |
 | [`relix catalog`](catalog.md) | Inspects the catalog: the declarations a run takes from the .relix/ directories from ~/.relix down to the working directory, and from --catalog files. |
+| [`relix source`](source.md) | Declares, lists, changes, removes and tests sources: the relations the catalog reads from files, databases and APIs. |
+| [`relix connection`](connection.md) | Declares, lists, changes, removes and tests connections: what several sources share, such as a database and its credentials. |
 | [`relix profiles`](profiles.md) | Lists, sets and removes the variables of the profiles ${VAR} placeholders resolve from (-P). |
 | [`relix drivers`](drivers.md) | Lists and installs JDBC drivers. |
 | [`relix connectors`](connectors.md) | Lists and installs connector plugins, such as mongodb. |

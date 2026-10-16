@@ -176,6 +176,17 @@ final class Invocation {
         return formatting.settle(host, relixrc.get(Relixrc.OUTPUT));
     }
 
+    /**
+     * The value a {@code ${VAR}} placeholder resolves to in this run: from {@code -D}, the
+     * profile, then the environment.
+     *
+     * @param name the placeholder's name
+     * @return its value, when it has one
+     */
+    Optional<String> placeholder(String name) {
+        return placeholders.apply(name);
+    }
+
     /** What the user trusts. */
     Trust trust() {
         return trust;

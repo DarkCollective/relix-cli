@@ -44,6 +44,20 @@ final class ProjectWrite {
      * @throws CommandFailure with {@link ExitCode#USAGE} when there is no project
      */
     static Path level(Invocation invocation, boolean user) {
+        return level(invocation, user, "--user");
+    }
+
+    /**
+     * The {@code .relix/} directory a command writes: the user's own when {@code flag} was
+     * given, otherwise the nearest project's.
+     *
+     * @param invocation the run
+     * @param user       whether the flag was given
+     * @param flag       the command's flag for the user's own directory
+     * @return the directory, absolute; it exists, unless it is the user's
+     * @throws CommandFailure with {@link ExitCode#USAGE} when there is no project
+     */
+    static Path level(Invocation invocation, boolean user, String flag) {
         Path own = invocation.host().home().resolve(RelixDirectories.NAME);
         if (user) {
             return own;
@@ -52,7 +66,7 @@ final class ProjectWrite {
         Path nearest = levels.isEmpty() ? null : levels.getLast();
         if (nearest == null || nearest.equals(own)) {
             throw new CommandFailure(ExitCode.USAGE, "no project " + RelixDirectories.NAME + " directory here or above;"
-                    + " make one with relix init, or give --user for " + own);
+                    + " make one with relix init, or give " + flag + " for " + own);
         }
         return nearest;
     }
