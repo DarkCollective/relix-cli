@@ -88,6 +88,20 @@ final class Invocation {
      *                 the command is the one that trusts them
      */
     Invocation(Host host, GlobalOptions options, boolean announce) {
+        this(host, options, announce, true);
+    }
+
+    /**
+     * A run, settled.
+     *
+     * @param host     the process
+     * @param options  its global options
+     * @param announce whether to say which untrusted directories are skipped
+     * @param profile  whether to select the profile {@code -P} names; not for a command
+     *                 that writes a project's files, which a profile it does not yet
+     *                 define must not stop
+     */
+    Invocation(Host host, GlobalOptions options, boolean announce, boolean profile) {
         this.host = host;
         this.options = options;
         this.reporter = new Reporter(host.err(), verbosity(options));
@@ -102,20 +116,20 @@ final class Invocation {
         List<Path> trusted = levels.stream().filter(trust::trusts).toList();
         this.relixrc = options.noCatalog ? Relixrc.none() : Relixrc.read(trusted, reporter::warning);
         this.catalogFiles = catalogFiles(host, options, directory);
-        String profile = options.profile != null ? options.profile
+        String selected = !profile ? null : options.profile != null ? options.profile
                 : host.variable(PROFILE_VARIABLE).or(() -> relixrc.get(Relixrc.PROFILE)).orElse(null);
         if (announce) {
             for (Path level : levels) {
-                if (!trust.trusts(level) && wouldRead(level, options.noCatalog, profile != null)) {
+                if (!trust.trusts(level) && wouldRead(level, options.noCatalog, selected != null)) {
                     Path project = level.getParent();
                     reporter.warning("skipping " + level + ", which is not trusted; to load it: "
                             + "relix catalog trust " + shellWord(project.toString()));
                 }
             }
         }
-        Map<String, String> values = profile == null
+        Map<String, String> values = selected == null
                 ? Map.of()
-                : Profiles.select(profile, trusted);
+                : Profiles.select(selected, trusted);
         this.placeholders = Placeholders.resolver(options.defines, values, host.environment());
     }
 

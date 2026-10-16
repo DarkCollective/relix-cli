@@ -59,6 +59,7 @@ relix [GLOBAL OPTIONS] [RUN OPTIONS] [SCRIPT...]       # `run` is the default co
 | `relix ir` | the IR report | `--ir` / default |
 | `relix provenance` | annotated rows (`--semiring`, `--weight`) | `--provenance` |
 | `relix fmt` | the script, printed canonically (`--glyphs`/`--keywords`) | *new* |
+| `relix init [DIR]` | nothing: creates a project's `.relix/` (`--root`, `-o`, `-P`) and trusts it | *new* (§5.1) |
 | `relix catalog` | `ls`, `schema NAME`, `where NAME`, `files`, `trust` | *new* (§5) |
 | `relix profiles` | the named environments and where each came from | `relix env` |
 | `relix drivers` | `ls`, `install NAME` | `--download-drivers` |
@@ -225,6 +226,12 @@ drains the query for its events and throws the rows away, because both wanted st
 ~/work/acme/reports/.relix/     a sub-project: more views, or a different `Orders`
     catalog/*.relix
 ```
+
+`relix init [DIR]` creates a project's directory: `catalog/`, a `profiles.json` at mode
+`0600` (holding the profile `-P` names, empty), a `.gitignore` inside `.relix/` that
+holds `profiles.json`, and with `-o`/`-P` a `relixrc`, with `--root` the `root` marker.
+It records the new directory as trusted (§5.4), and refuses, with exit 2, a directory
+that already has a `.relix/`.
 
 ### 5.2 Discovery
 

@@ -181,6 +181,7 @@ of its own, and each writes one thing to standard output:
 | [`relix ir`](commands/ir.md) | the symbols, views and queries the analyser made of the script |
 | [`relix provenance`](commands/provenance.md) | the rows, each with where it came from |
 | [`relix fmt`](commands/fmt.md) | the script, printed canonically |
+| [`relix init`](commands/init.md) | nothing; it creates a project's `.relix/` directory |
 | [`relix catalog`](commands/catalog.md) | the catalog's files, relations, columns and trust |
 | [`relix drivers`](commands/drivers.md), [`relix connectors`](commands/connectors.md) | the JDBC drivers and connector plugins, and installing them |
 | [`relix doc`](commands/doc.md) | a page of the language reference |

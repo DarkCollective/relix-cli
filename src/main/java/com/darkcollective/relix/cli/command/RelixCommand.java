@@ -48,8 +48,9 @@ import java.util.concurrent.Callable;
         subcommands = {
             RunCommand.class, CheckCommand.class, ExplainCommand.class, OptimizeCommand.class,
             TraceCommand.class, BundleCommand.class, IrCommand.class, ProvenanceCommand.class,
-            FmtCommand.class, CatalogCommand.class, DriversCommand.class, ConnectorsCommand.class,
-            DocCommand.class, HelpCommand.class, VersionCommand.class, CompletionCommand.class},
+            FmtCommand.class, InitCommand.class, CatalogCommand.class, DriversCommand.class,
+            ConnectorsCommand.class, DocCommand.class, HelpCommand.class, VersionCommand.class,
+            CompletionCommand.class},
         exitCodeListHeading = "%nExit status:%n",
         exitCodeList = {
             " 0:success",
@@ -160,6 +161,21 @@ public final class RelixCommand implements Callable<Integer> {
      */
     Invocation invocation(boolean announce) {
         return new Invocation(host, options, announce);
+    }
+
+    /**
+     * This invocation's global options, settled for a command that writes a project's
+     * files: no profile is selected, and nothing is said of untrusted directories.
+     *
+     * @return the run
+     */
+    Invocation writing() {
+        return new Invocation(host, options, false, false);
+    }
+
+    /** The profile {@code -P} names on the command line, if it names one. */
+    String profileOption() {
+        return options.profile;
     }
 
     /** The command's and the engine's versions, for {@code --version}. */
