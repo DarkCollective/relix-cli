@@ -61,7 +61,7 @@ relix [GLOBAL OPTIONS] [RUN OPTIONS] [SCRIPT...]       # `run` is the default co
 | `relix fmt` | the script, printed canonically (`--glyphs`/`--keywords`) | *new* |
 | `relix init [DIR]` | nothing: creates a project's `.relix/` (`--root`, `-o`, `-P`) and trusts it | *new* (§5.1) |
 | `relix catalog` | `ls`, `schema NAME`, `where NAME`, `files`, `trust` | *new* (§5) |
-| `relix profiles` | the named environments and where each came from | `relix env` |
+| `relix profiles` | `ls` (profile, variable, file; never a value), `set`, `get`, `rm` | `relix env` |
 | `relix drivers` | `ls`, `install NAME` | `--download-drivers` |
 | `relix connectors` | `ls`, `install NAME` | `relix connectors`, `--download-connectors` |
 | `relix doc [TOPIC]` | a reference page (paged on a TTY) | `relix help lang …` |
@@ -282,7 +282,20 @@ a name it would have supplied. `RELIX_TRUST_ALL=1` exists for CI containers.
 
 What is trusted without asking is what the user chose: `~/.relix`, a script named on
 the command line, `-e`, stdin, and `--catalog` files. `relix catalog trust --list` and
-`--revoke DIR` manage the record. `profiles.json` (any level) is refused, as `ssh`
+`--revoke DIR` manage the record.
+
+A command that writes under a `.relix/` (`init`, `profiles set`/`rm`, `source` and
+`connection`) would untrust the project with its own change. So before writing it checks
+that the directory is trusted **and** its files still match the recorded hash; if both
+hold, it records the new hash after writing and the project stays trusted. Otherwise it
+stays untrusted after the write too, so a change someone else made is still reviewed
+before it loads. The command says which happened, on stderr.
+
+`relix profiles set PROFILE VAR` writes a value to the nearest project's `profiles.json`
+(or `~/.relix`'s with `--user`), creating it at `0600` and refusing a looser one. The value
+comes from a prompt that does not echo on a terminal, from stdin otherwise, and never
+from an argument. It warns when git tracks the file. `get` prints the value a run would
+resolve; `ls` lists names only. `profiles.json` (any level) is refused, as `ssh`
 refuses a loose private key, when it is readable by group or others, since it may hold
 credentials; the error names the `chmod` that fixes it. On Windows, where POSIX
 permission bits do not apply, this check is skipped.

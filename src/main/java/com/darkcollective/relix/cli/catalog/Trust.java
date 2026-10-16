@@ -168,6 +168,45 @@ public final class Trust {
         save();
     }
 
+    /** What became of a directory's trust when a command changed a file in it. */
+    public enum Kept {
+        /** It is the user's own {@code ~/.relix}, which needs no trust. */
+        OWN,
+        /** It was trusted and unchanged before, and is trusted as it is now. */
+        TRUSTED,
+        /** It was untrusted, or changed by someone else since it was trusted, and still is. */
+        UNTRUSTED
+    }
+
+    /**
+     * Changes files in a {@code .relix/} directory without changing whether it is trusted.
+     *
+     * <p>Any change under a trusted directory untrusts it, so without this every edit a
+     * command makes on the user's behalf would need a {@code relix catalog trust} after
+     * it. When the directory is trusted <em>and</em> its files are still as they were when
+     * it was, the change is the only one, and the directory is trusted again as it now is.
+     * Otherwise it stays untrusted after the change too, so that a change someone else
+     * made is still reviewed before it loads.
+     *
+     * @param level  a {@code .relix/} directory, absolute
+     * @param change what writes its files
+     * @return what became of its trust
+     * @throws CommandFailure with {@link ExitCode#ENVIRONMENT} when the record cannot be written
+     */
+    public Kept keep(Path level, Runnable change) {
+        if (level.equals(user)) {
+            change.run();
+            return Kept.OWN;
+        }
+        boolean trustedBefore = state(level) == State.TRUSTED;
+        change.run();
+        if (!trustedBefore) {
+            return Kept.UNTRUSTED;
+        }
+        trust(level);
+        return Kept.TRUSTED;
+    }
+
     /**
      * Removes a directory from the record.
      *
