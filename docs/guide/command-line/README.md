@@ -29,7 +29,7 @@ What a directory gives the commands run in it.
 | Page | What it covers |
 |---|---|
 | [The catalog](catalog.md) | `.relix/` directories and how they are found; trusting a project; a nearer declaration wins; inspecting the catalog; `--catalog`; `relixrc`; starting a project with `relix init` |
-| [Secrets and profiles](secrets.md) | `${NAME}` placeholders; `profiles.json` and `-P`; the environment and `-D`; private profile files; what is never printed |
+| [Secrets and profiles](secrets.md) | `${NAME}` placeholders; `profiles.json` and `-P`; setting values with `relix profiles`; the environment and `-D`; private profile files; what is never printed |
 
 ## Command-line recipes
 
@@ -56,6 +56,7 @@ and examples.
 | [`relix fmt`](commands/fmt.md) | Prints scripts canonically, keeping their comments |
 | [`relix init`](commands/init.md) | Creates a project's `.relix/` directory, and trusts it |
 | [`relix catalog`](commands/catalog.md) | Lists the catalog's files, relations, columns and declarations; trusts a project |
+| [`relix profiles`](commands/profiles.md) | Lists, sets and removes the variables of the profiles |
 | [`relix drivers`](commands/drivers.md) | Lists and installs JDBC drivers |
 | [`relix connectors`](commands/connectors.md) | Lists and installs connector plugins |
 | [`relix doc`](commands/doc.md) | Shows a page of the language reference |

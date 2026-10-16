@@ -48,8 +48,8 @@ import java.util.concurrent.Callable;
         subcommands = {
             RunCommand.class, CheckCommand.class, ExplainCommand.class, OptimizeCommand.class,
             TraceCommand.class, BundleCommand.class, IrCommand.class, ProvenanceCommand.class,
-            FmtCommand.class, InitCommand.class, CatalogCommand.class, DriversCommand.class,
-            ConnectorsCommand.class, DocCommand.class, HelpCommand.class, VersionCommand.class,
+            FmtCommand.class, InitCommand.class, CatalogCommand.class, ProfilesCommand.class,
+            DriversCommand.class, ConnectorsCommand.class, DocCommand.class, HelpCommand.class, VersionCommand.class,
             CompletionCommand.class},
         exitCodeListHeading = "%nExit status:%n",
         exitCodeList = {
