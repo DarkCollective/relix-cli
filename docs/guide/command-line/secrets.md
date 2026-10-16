@@ -116,6 +116,69 @@ A project's `profiles.json` is part of its `.relix/` directory, so it is read on
 the project is [trusted](catalog.md#a-project-must-be-trusted); `~/.relix/profiles.json`
 is always read.
 
+### Setting profile values
+
+`relix profiles` lists every profile's variables and the file that sets each, but never a
+value:
+
+```shell
+relix profiles ls -o tsv
+```
+```
+profile	variable	file
+dev	WAREHOUSE_PASSWORD	~/.relix/profiles.json
+dev	WAREHOUSE_URL	~/shop/.relix/profiles.json
+dev	WAREHOUSE_USER	~/shop/.relix/profiles.json
+```
+
+`relix profiles set PROFILE VARIABLE` sets one, so that a credential never has to be typed
+into the file. The value is never an argument, which a shell would keep in its history
+and `ps` would show: on a terminal it is asked for without being echoed, and otherwise it
+is read from standard input, which is how a password manager hands it over
+(`op read op://shop/warehouse/password | relix profiles set …`). It goes to the nearest
+project's `profiles.json`, or with `--user` to your own, which is written readable by you
+alone:
+
+```shell
+printf 's3cret\n' | relix profiles set --user staging WAREHOUSE_PASSWORD
+relix profiles get staging WAREHOUSE_PASSWORD
+```
+```
+s3cret
+```
+
+`get` prints the value a run under that profile would resolve, nearest file first, since
+a pipeline may need it; `--user` reads your own file alone. `relix profiles rm PROFILE
+VARIABLE` removes a variable, and without `VARIABLE` the whole profile:
+
+```shell
+relix profiles rm --user staging
+relix profiles ls --user -o tsv
+```
+```
+profile	variable	file
+dev	WAREHOUSE_PASSWORD	~/.relix/profiles.json
+```
+
+Changing a file under a trusted project would untrust it, as any change does, so `set`
+and `rm` look first: when the project is trusted and its files are as they were trusted,
+it is trusted again as it is after the change. A project that was not trusted, or that
+someone else changed since it was, stays untrusted, so what they changed is still
+reviewed before it loads. Which of the two happened is said on standard error.
+
+```shell
+printf 'shop\n' | relix profiles set dev WAREHOUSE_USER
+relix catalog trust --list -o tsv
+```
+```
+directory	state
+~/shop	trusted
+~/shop/reports	trusted
+```
+
+`set` and `rm` warn when `git` tracks the `profiles.json` they write. A project made by
+[`relix init`](catalog.md#starting-a-project) ignores it from the start.
+
 ### A profile file must be private
 
 A profile may hold a password, so a `profiles.json` that its group or others can read is

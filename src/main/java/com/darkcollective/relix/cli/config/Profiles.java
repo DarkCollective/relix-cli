@@ -17,6 +17,7 @@ package com.darkcollective.relix.cli.config;
 
 import com.darkcollective.relix.cli.CommandFailure;
 import com.darkcollective.relix.cli.ExitCode;
+import com.darkcollective.relix.cli.render.JsonText;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonParser;
 import tools.jackson.core.JsonToken;
@@ -111,6 +112,48 @@ public final class Profiles {
     }
 
     /**
+     * The profiles one file defines, for a command that changes them.
+     *
+     * @param file a profiles file, which need not exist
+     * @return each profile's variables, in file order, by profile name; empty when there
+     *         is no file. The maps are the caller's to change.
+     * @throws CommandFailure with {@link ExitCode#ENVIRONMENT} when the file is readable by
+     *                        group or others, or is not a profiles file
+     */
+    public static Map<String, Map<String, String>> load(Path file) {
+        if (!Files.exists(file)) {
+            return new LinkedHashMap<>();
+        }
+        requirePrivate(file);
+        return read(file);
+    }
+
+    /**
+     * Writes profiles to a file only its owner can read, as {@link #load} reads them.
+     *
+     * @param file     the profiles file
+     * @param profiles each profile's variables, by profile name
+     * @throws CommandFailure with {@link ExitCode#ENVIRONMENT} when it cannot be written
+     */
+    public static void save(Path file, Map<String, Map<String, String>> profiles) {
+        StringBuilder json = new StringBuilder("{");
+        String profileSeparator = "\n";
+        for (Map.Entry<String, Map<String, String>> profile : profiles.entrySet()) {
+            json.append(profileSeparator).append("  ").append(JsonText.quote(profile.getKey())).append(": {");
+            String separator = "\n";
+            for (Map.Entry<String, String> variable : profile.getValue().entrySet()) {
+                json.append(separator).append("    ").append(JsonText.quote(variable.getKey()))
+                        .append(": ").append(JsonText.quote(variable.getValue()));
+                separator = ",\n";
+            }
+            json.append(profile.getValue().isEmpty() ? "}" : "\n  }");
+            profileSeparator = ",\n";
+        }
+        json.append(profiles.isEmpty() ? "}\n" : "\n}\n");
+        writePrivate(file, json.toString());
+    }
+
+    /**
      * Writes a profiles file that only its owner can read, replacing any file there. The
      * text goes to a temporary file made private before anything is written to it, which
      * then takes the file's place, so the file is never readable by others, not even for
@@ -146,7 +189,7 @@ public final class Profiles {
      * @throws CommandFailure with {@link ExitCode#ENVIRONMENT} when it is readable by more
      *                        than its owner
      */
-    static void requirePrivate(Path file) {
+    public static void requirePrivate(Path file) {
         PosixFileAttributeView posix = Files.getFileAttributeView(file, PosixFileAttributeView.class);
         if (posix == null) {
             return;
