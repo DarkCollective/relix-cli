@@ -24,10 +24,13 @@ import tools.jackson.core.ObjectReadContext;
 import tools.jackson.core.json.JsonFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -105,6 +108,35 @@ public final class Profiles {
                             : " (defined: " + String.join(", ", known) + ")"));
         }
         return Map.copyOf(merged);
+    }
+
+    /**
+     * Writes a profiles file that only its owner can read, replacing any file there. The
+     * text goes to a temporary file made private before anything is written to it, which
+     * then takes the file's place, so the file is never readable by others, not even for
+     * a moment, and never half written.
+     *
+     * @param file the profiles file
+     * @param text what it holds
+     * @throws CommandFailure with {@link ExitCode#ENVIRONMENT} when it cannot be written
+     */
+    public static void writePrivate(Path file, String text) {
+        Path dir = file.toAbsolutePath().getParent();
+        try {
+            Files.createDirectories(dir);
+            Path temporary = Files.getFileStore(dir).supportsFileAttributeView(PosixFileAttributeView.class)
+                    ? Files.createTempFile(dir, FILE_NAME, ".tmp",
+                            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
+                    : Files.createTempFile(dir, FILE_NAME, ".tmp");
+            try {
+                Files.writeString(temporary, text, StandardCharsets.UTF_8);
+                Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } finally {
+                Files.deleteIfExists(temporary);
+            }
+        } catch (IOException e) {
+            throw new CommandFailure(ExitCode.ENVIRONMENT, file + ": cannot write: " + e.getMessage());
+        }
     }
 
     /**

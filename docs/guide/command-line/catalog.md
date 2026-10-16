@@ -326,3 +326,39 @@ Bob
 Carol
 Dan
 ```
+
+## Starting a project
+
+`relix init` makes a project's `.relix/` directory, in the working directory or the one it
+names:
+
+```shell
+relix init ~/stall
+find ~/stall/.relix | sort
+```
+```
+~/stall/.relix
+~/stall/.relix/.gitignore
+~/stall/.relix/catalog
+~/stall/.relix/profiles.json
+```
+
+It writes an empty `catalog/`, a `profiles.json` only you can read, and a `.gitignore`
+inside `.relix/` that keeps `profiles.json` out of version control, so no file of yours
+outside the directory is touched. `-o FORMAT` and `-P NAME` write a `relixrc` with those
+defaults, and `--root` writes the `root` marker. Then it trusts the new directory, as
+`relix catalog trust` would, so the first run there loads it without a warning:
+
+```shell
+relix catalog trust --list -o tsv
+```
+```
+directory	state
+~/shop	trusted
+~/shop/reports	trusted
+~/stall	trusted
+```
+
+A directory that already has a `.relix/` is refused with exit status 2: `init` makes a
+new project and never changes one. Started outside your home directory, it warns that
+only the working directory's own `.relix/` is read there.
