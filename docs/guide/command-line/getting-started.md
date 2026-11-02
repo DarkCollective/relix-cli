@@ -204,7 +204,7 @@ message`, the shape compilers use, so an editor or a CI annotator can jump to it
 relix check scripts/broken.relix 2>&1; echo "exit $?"
 ```
 ```
-scripts/broken.relix:1:30: error: Undefined relation: 'Ordrs'
+scripts/broken.relix:1:30: error: Undefined relation: 'Ordrs' — did you mean 'Orders'?
 exit 3
 ```
 
