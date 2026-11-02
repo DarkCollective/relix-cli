@@ -139,7 +139,7 @@ script in a tree:
 find scripts -name '*.relix' | sort | xargs relix check 2>&1 || echo "a script has a problem"
 ```
 ```
-scripts/broken.relix:1:30: error: Undefined relation: 'Ordrs'
+scripts/broken.relix:1:30: error: Undefined relation: 'Ordrs' — did you mean 'Orders'?
 a script has a problem
 ```
 

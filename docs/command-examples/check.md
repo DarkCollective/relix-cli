@@ -12,7 +12,7 @@ A problem is printed on standard error, and the status is 3:
 relix check scripts/broken.relix 2>&1; echo "exit $?"
 ```
 ```
-scripts/broken.relix:1:30: error: Undefined relation: 'Ordrs'
+scripts/broken.relix:1:30: error: Undefined relation: 'Ordrs' — did you mean 'Orders'?
 exit 3
 ```
 
@@ -23,7 +23,7 @@ read:
 relix check --json scripts/broken.relix; echo "exit $?"
 ```
 ```
-{"diagnostics":[{"file":"scripts/broken.relix","line":1,"column":30,"severity":"error","message":"Undefined relation: 'Ordrs'"}]}
+{"diagnostics":[{"file":"scripts/broken.relix","line":1,"column":30,"severity":"error","message":"Undefined relation: 'Ordrs' — did you mean 'Orders'?"}]}
 exit 3
 ```
 
