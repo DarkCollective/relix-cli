@@ -225,7 +225,7 @@ is not there, a database that refuses the connection — is one line beginning `
 relix -e 'SELECT amount > 100 (Ordrs)' 2>&1; echo "exit $?"
 ```
 ```
--e:1:22: error: Undefined relation: 'Ordrs'
+-e:1:22: error: Undefined relation: 'Ordrs' — did you mean 'Orders'?
 exit 3
 ```
 

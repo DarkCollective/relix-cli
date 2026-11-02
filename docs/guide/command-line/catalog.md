@@ -98,7 +98,7 @@ relix -e 'Customers' 2>&1; echo "exit $?"
 ```
 ```
 relix: warning: skipping ~/shop/.relix, which is not trusted; to load it: relix catalog trust ~/shop
--e:1:1: error: Undefined relation: 'Customers'
+-e:1:1: error: Undefined relation: 'Customers' (defined: Regions)
 relix: Customers is declared in ~/shop/.relix/catalog/00-sources.relix, which is not trusted; to load it: relix catalog trust ~/shop
 exit 5
 ```

@@ -168,7 +168,7 @@ class ReportCommandsTest {
 
             assertThat(result.status()).isEqualTo(3);
             assertThat(result.out()).isEmpty();
-            assertThat(result.err()).isEqualTo("broken.relix:6:19: error: Undefined relation: 'Missing'\n");
+            assertThat(result.err()).isEqualTo("broken.relix:6:19: error: Undefined relation: 'Missing' (defined: N, Bad)\n");
         }
 
         @Test
@@ -180,7 +180,7 @@ class ReportCommandsTest {
             assertThat(result.err()).isEmpty();
             assertThat(isJson(result.out())).as(result.out()).isTrue();
             assertThat(result.out()).isEqualTo("{\"diagnostics\":[{\"file\":\"broken.relix\",\"line\":6,"
-                    + "\"column\":19,\"severity\":\"error\",\"message\":\"Undefined relation: 'Missing'\"}]}\n");
+                    + "\"column\":19,\"severity\":\"error\",\"message\":\"Undefined relation: 'Missing' (defined: N, Bad)\"}]}\n");
         }
 
         @Test
@@ -396,7 +396,7 @@ class ReportCommandsTest {
             assertThat(result.status()).isEqualTo(3);
             assertThat(isJson(result.out())).as(result.out()).isTrue();
             assertThat(result.out()).contains("\"diagnostics\":[{\"severity\":\"error\","
-                    + "\"message\":\"Undefined relation: 'Missing'\",\"file\":\"broken.relix\",\"line\":6,\"column\":19}]");
+                    + "\"message\":\"Undefined relation: 'Missing' (defined: N, Bad)\",\"file\":\"broken.relix\",\"line\":6,\"column\":19}]");
         }
     }
 

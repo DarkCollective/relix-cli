@@ -16,12 +16,13 @@ SELECT <condition> (Relation)
 With no topic, `relix doc` lists the pages, as rows:
 
 ```shell
-relix doc -o tsv | head -4
+relix doc -o tsv | head -5
 ```
 ```
 topic	category	title	summary
 getting-started	guide	Getting started	Your first script — declare data, name a result, run it
 glossary	guide	Glossary	The vocabulary — relation, tuple, bag vs set, materialisation, pushdown
+operators-by-task	guide	Operators by task	The operator for each task SQL has no operator for, named in a question's words
 σ	operator	Selection	Filter rows by a condition
 ```
 
