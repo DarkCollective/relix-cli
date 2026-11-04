@@ -11,7 +11,7 @@ plugins {
     id 'jacoco'
     // The platform image (design §7.3). forceMerge folds the jars that are not proper
     // modules into one that is, which jlink needs.
-    id 'org.beryx.jlink' version '4.1.1'
+    id 'org.beryx.jlink' version '4.2.0'
 }
 
 group = 'com.darkcollective.relix'
