@@ -26,7 +26,7 @@ version = findProperty('cliVersion') ?: '1.0.0-SNAPSHOT'
 // branch instead (1.0.0-SNAPSHOT), which relix-core publishes to Central's snapshot
 // repository on every push. A release pins a released engine (checkEnginePin).
 // -PrelixEngineVersion=<v> overrides it for one build, to try a candidate engine.
-ext.relixEngineVersion = (findProperty('relixEngineVersion') ?: '1.0.0-rc12') as String
+ext.relixEngineVersion = (findProperty('relixEngineVersion') ?: '1.0.0-rc13') as String
 
 def engineIsSnapshot = relixEngineVersion.endsWith('-SNAPSHOT')
 
