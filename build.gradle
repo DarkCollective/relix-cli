@@ -15,8 +15,9 @@ plugins {
 }
 
 group = 'com.darkcollective.relix'
-// A release is built with -PcliVersion=<version>; anything else is a snapshot.
-version = findProperty('cliVersion') ?: '0.1.0-SNAPSHOT'
+// A release is built with -PcliVersion=<version>; anything else is a snapshot of the line
+// being worked towards (1.0.0, which sorts above 0.1.x and below its own release candidates).
+version = findProperty('cliVersion') ?: '1.0.0-SNAPSHOT'
 
 // The engine pin: the one place the engine's version is named.
 //

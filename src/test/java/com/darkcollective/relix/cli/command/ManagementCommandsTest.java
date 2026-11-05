@@ -16,7 +16,9 @@
 package com.darkcollective.relix.cli.command;
 
 import com.darkcollective.relix.cli.Cli;
+import com.darkcollective.relix.docs.ReferenceLookup;
 import com.darkcollective.relix.docs.RelixDocs;
+import com.darkcollective.relix.function.FunctionCatalog;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -224,6 +226,22 @@ class ManagementCommandsTest {
             var result = cli().piped().run("doc", "--function");
 
             assertThat(result.out().lines().skip(1)).isNotEmpty().allMatch(l -> l.split("\t")[1].equals("function"));
+        }
+
+        @Test
+        @DisplayName("--function with a function category lists that category's functions, "
+                + "whatever categories the installed engine has")
+        void category() {
+            var categories = ReferenceLookup.of(FunctionCatalog.discover()).functionsByCategory();
+            assertThat(categories).isNotEmpty();
+            categories.forEach((name, pages) -> {
+                var result = cli().piped().run("doc", "--function", name);
+
+                assertThat(result.status()).as(name).isZero();
+                assertThat(result.out().lines().skip(1).map(l -> l.split("\t")[0]).toList())
+                        .as(name).containsExactlyInAnyOrderElementsOf(
+                                pages.stream().map(page -> page.symbol()).toList());
+            });
         }
 
         @Test
