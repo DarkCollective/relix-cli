@@ -4,8 +4,10 @@
 # Homebrew formula and Scoop manifest that install them, pushed to the tap
 # (DarkCollective/homebrew-relix) and the bucket (DarkCollective/scoop-relix).
 #
-# A tag vX.Y.Z publishes X.Y.Z. A tag with a suffix (v1.2.0-rc1) publishes a pre-release
-# and leaves the tap and the bucket alone.
+# A tag vX.Y.Z publishes X.Y.Z. A tag with a suffix (v1.2.0-rc1) publishes a GitHub
+# pre-release; the tap and the bucket follow it all the same, so `brew install relix` and
+# `scoop install relix` give the newest release, a release candidate included. Both order
+# 1.2.0-rc1 below 1.2.0, so the final release replaces its candidates as the install.
 #
 # Run from the Actions tab, it is a dry run: it builds and tests every archive, writes the
 # formula and the manifest and checks their checksums against the archives, and uploads
@@ -127,6 +129,7 @@ jobs:
           pattern: archive-*
           path: dist
           merge-multiple: true
+      - run: python3 -m unittest discover -s packaging -p 'test_*.py'
       # Fails unless every archive the formula and the manifest name is in dist with the
       # checksum they give it.
       - run: python3 packaging/release.py "$VERSION" dist release-files
@@ -168,7 +171,6 @@ jobs:
   tap:
     name: Update the Homebrew tap and the Scoop bucket
     needs: [version, publish]
-    if: needs.version.outputs.stable == 'true'
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}

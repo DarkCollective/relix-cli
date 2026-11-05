@@ -54,9 +54,10 @@ scoop bucket add relix https://github.com/DarkCollective/scoop-relix
 scoop install relix
 ```
 
-Homebrew and Scoop install the latest stable release; a release candidate leaves the tap
-and the bucket alone. To try one, or to install without a package manager, download the
-archive for your platform from the
+Homebrew and Scoop install the newest release, a release candidate included: while 1.0.0
+is being prepared, `relix` is the newest `1.0.0-rcN`, and the final 1.0.0 replaces it
+(both order a candidate below its release). To install without a package manager,
+download the archive for your platform from the
 [releases](https://github.com/DarkCollective/relix-cli/releases), check it against
 `checksums.txt`, unpack it and put its `bin/` on your `PATH`.
 
