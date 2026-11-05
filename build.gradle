@@ -380,6 +380,39 @@ DIR="$(cd "$(dirname "$LINK")" && pwd)"''')
     }
 }
 
+// The release scripts' own tests (packaging/test_release.py): the formula and the manifest
+// written for a release candidate and a final release, and the rule that the tap and the
+// bucket follow both. Skipped, with a warning, on a machine with no Python; the release
+// workflow runs them too.
+def packagingScriptTest = tasks.register('packagingScriptTest') {
+    description = 'Runs the release scripts\' tests.'
+    inputs.dir(layout.projectDirectory.dir('packaging'))
+    inputs.file(layout.projectDirectory.file('.github/workflows/release.yml'))
+    def dir = layout.projectDirectory.dir('packaging').asFile
+    def stamp = layout.buildDirectory.file('packagingScriptTest.stamp')
+    outputs.file(stamp)
+    doLast {
+        def python = ['python3', 'python'].find {
+            try { new ProcessBuilder(it, '--version').redirectErrorStream(true).start().waitFor() == 0 }
+            catch (IOException ignored) { false }
+        }
+        if (python == null) {
+            logger.warn('No Python on the PATH: the release scripts\' tests were not run.')
+        } else {
+            def process = new ProcessBuilder(python, '-m', 'unittest', 'discover', '-s', dir.path, '-p', 'test_*.py')
+                    .redirectErrorStream(true).start()
+            def output = process.inputStream.text
+            if (process.waitFor() != 0) {
+                throw new GradleException("The release scripts' tests failed:\n${output}")
+            }
+        }
+        stamp.get().asFile.text = 'ok'
+    }
+}
+tasks.named('check') {
+    dependsOn packagingScriptTest
+}
+
 // The man pages and completion scripts, from the command's picocli model.
 def releaseFilesDir = layout.buildDirectory.dir('release-files')
 def releaseFiles = tasks.register('releaseFiles', JavaExec) {

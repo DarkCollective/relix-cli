@@ -168,8 +168,9 @@ property `baseDir`).
    workflow runs again, attaches the archives and `checksums.txt` to the GitHub Release,
    and pushes the formula to `DarkCollective/homebrew-relix` and the manifest to
    `DarkCollective/scoop-relix`, with the `HOMEBREW_TAP_PAT` and `SCOOP_BUCKET_PAT`
-   secrets. A tag with a suffix (`v1.2.0-rc1`) makes a pre-release and leaves the tap and
-   the bucket alone.
+   secrets. A tag with a suffix (`v1.2.0-rc1`) makes a GitHub pre-release and updates the
+   tap and the bucket in the same way, so they carry the newest release candidate until
+   the final release replaces it (Homebrew and Scoop both order `1.2.0-rc1` below `1.2.0`).
 
 The formula and the manifest are written whole from `packaging/` on every release, so a
 change to either is made there, not in the tap or the bucket.
