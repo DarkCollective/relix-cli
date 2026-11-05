@@ -42,7 +42,7 @@ import java.util.concurrent.Callable;
  * <p>A topic is found by glyph, keyword or name: {@code σ}, {@code select} and
  * {@code selection} are one page. A language keyword keeps a name it shares with a
  * function, so {@code relix doc fix} is the recursion operator and
- * {@code relix doc --function fix} is the function. The page is rendered for a terminal
+ * {@code relix doc --function fix} is the function. With {@code --function}, a category name lists its functions. The page is rendered for a terminal
  * and, on one, shown through {@code $PAGER}. With no topic, the pages are listed, as rows.
  *
  * <p>Pages are found by {@code relix-docs}' {@link ReferenceLookup}, over the language pages
@@ -67,7 +67,7 @@ final class DocCommand implements Callable<Integer> {
     String topic;
 
     @Option(names = "--function",
-            description = "Look TOPIC up among the functions only, or list only them.")
+            description = "Look TOPIC up among the functions only, or list only them. TOPIC may also be a function category (string, json), which lists its functions.")
     boolean function;
 
     @Option(names = "--markdown", description = "Print the page's markdown as it is, not rendered.")
@@ -86,6 +86,17 @@ final class DocCommand implements Callable<Integer> {
         if (topic == null) {
             list(invocation, index);
             return ExitCode.SUCCESS.status();
+        }
+        if (function && index.function(topic).isEmpty()) {
+            // A function category, such as string or json, lists its functions. The
+            // categories are those the installed libraries declare, not a list kept here.
+            Optional<List<ReferencePage>> category = index.functionsByCategory().entrySet().stream()
+                    .filter(entry -> entry.getKey().equalsIgnoreCase(topic))
+                    .map(java.util.Map.Entry::getValue).findFirst();
+            if (category.isPresent()) {
+                listing(invocation, category.get());
+                return ExitCode.SUCCESS.status();
+            }
         }
         Optional<ReferencePage> found = function ? index.function(topic) : index.entry(topic);
         ReferencePage page = found.orElseThrow(() -> new CommandFailure(ExitCode.USAGE,
@@ -107,13 +118,18 @@ final class DocCommand implements Callable<Integer> {
 
     /** The language pages, in the reference's order, unless --function; then the functions'. */
     private void list(Invocation invocation, ReferenceLookup index) {
-        Listing listing = new Listing("topic", ScalarType.STRING, "category", ScalarType.STRING,
-                "title", ScalarType.STRING, "summary", ScalarType.STRING);
         List<ReferencePage> pages = new ArrayList<>();
         if (!function) {
             pages.addAll(RelixDocs.referencePages());
         }
         index.functionsByCategory().values().forEach(pages::addAll);
+        listing(invocation, pages);
+    }
+
+    /** The given pages as the listing's rows. */
+    private void listing(Invocation invocation, List<ReferencePage> pages) {
+        Listing listing = new Listing("topic", ScalarType.STRING, "category", ScalarType.STRING,
+                "title", ScalarType.STRING, "summary", ScalarType.STRING);
         for (ReferencePage page : pages) {
             listing.add(page.symbol(), page.category(), page.title(), page.summary());
         }

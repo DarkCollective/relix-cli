@@ -15,6 +15,7 @@
  */
 package com.darkcollective.relix.cli.io;
 
+import java.io.Console;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -67,16 +68,40 @@ public record Host(InputStream in, OutputStream out, PrintStream err,
      * @return the real streams, environment and directories
      */
     public static Host system() {
-        // On Java 21 a null console is the pipe check: System.console() is null when
-        // standard input or output is redirected, and it cannot tell which. Both are taken
-        // for pipes then, so `echo … | relix` writes tsv to a terminal; pass -o to choose.
-        // Java 22 returns a console for a pipe too, and this has to move to
-        // Console.isTerminal() with it.
-        boolean terminal = System.console() != null;
+        // Java 21: System.console() is null when standard input or output is redirected, and
+        // it cannot tell which, so both are taken for pipes then and `echo … | relix` writes
+        // tsv to a terminal; pass -o to choose. Java 22 returns a console for a pipe too and
+        // adds Console.isTerminal(), which is asked for when it exists. The command is built
+        // on 21, so the method is reached reflectively.
+        boolean terminal = terminal(System.console() != null, isTerminal(System.console()));
         return new Host(System.in, new FileOutputStream(FileDescriptor.out), System.err,
                 System.getenv(),
                 Path.of(System.getProperty("user.dir")), Path.of(System.getProperty("user.home")),
                 terminal, terminal);
+    }
+
+    /**
+     * Whether the process is on a terminal.
+     *
+     * @param console  the JVM's console, or null when it has none
+     * @param verdict  what {@code Console.isTerminal()} says of it, or null on a JVM that
+     *                 has no such method (before 22), where a console is all there is to go on
+     * @return false without a console; otherwise the verdict, else true
+     */
+    static boolean terminal(boolean console, Boolean verdict) {
+        return console && (verdict == null || verdict);
+    }
+
+    /** {@code Console.isTerminal()} of the JVM's console, or null before Java 22. */
+    private static Boolean isTerminal(Console console) {
+        if (console == null) {
+            return null;
+        }
+        try {
+            return (Boolean) Console.class.getMethod("isTerminal").invoke(console);
+        } catch (ReflectiveOperationException e) {
+            return null;
+        }
     }
 
     /**

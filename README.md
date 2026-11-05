@@ -19,8 +19,8 @@ Its documentation is the command-line section of the Relix programming guide, in
 
 ## Status
 
-Under development. There is no release yet, and the command line described above is
-the design being built, not a shipped interface.
+Released. 0.1.x are stable releases; 1.0.0 is being prepared through release candidates
+(1.0.0-rcN), which GitHub lists as pre-releases.
 
 ## Building
 
@@ -54,7 +54,9 @@ scoop bucket add relix https://github.com/DarkCollective/scoop-relix
 scoop install relix
 ```
 
-Or download the archive for your platform from the
+Homebrew and Scoop install the latest stable release; a release candidate leaves the tap
+and the bucket alone. To try one, or to install without a package manager, download the
+archive for your platform from the
 [releases](https://github.com/DarkCollective/relix-cli/releases), check it against
 `checksums.txt`, unpack it and put its `bin/` on your `PATH`.
 

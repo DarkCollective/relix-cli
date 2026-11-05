@@ -55,7 +55,7 @@ Every command takes these, before or after its name.
 | `--max-materialized-rows=N` | Fail a query in which one blocking operator buffers more than N rows. |
 | `--max-processed-rows=N` | Fail a query that processes more than N rows in all. |
 | `--timeout=DURATION` | Fail a query that runs longer than DURATION: 500ms, 30s, 5m, 1h, or ISO-8601 (PT30S). |
-| `--sandbox=FILE` | Run under the sandbox FILE describes. |
+| `--sandbox=FILE` | Run under the sandbox FILE describes: a JSON file, relative paths in it resolving against its own directory, with optional keys "declarations" (a .relix file of the only external sources, connections and imports scripts may use) and "limits" (maxInputChars, maxOutputRows, maxMaterializedRows, maxFixpointRounds, maxProcessedRows, timeoutMillis). An unknown key is an error. Where FILE and a --max-* option or --timeout both limit, the smaller applies. |
 | `--remote` | Permit http(s) file locations. |
 | `--allow-download` | Permit fetching a missing JDBC driver or connector during the run. |
 | `-h`, `--help` | Show this help message and exit. |
