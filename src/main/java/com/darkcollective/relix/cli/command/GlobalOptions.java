@@ -93,7 +93,14 @@ final class GlobalOptions {
     Duration timeout;
 
     @Option(names = "--sandbox", paramLabel = "FILE", scope = ScopeType.INHERIT,
-            description = "Run under the sandbox FILE describes.")
+            description = {
+                "Run under the sandbox FILE describes: a JSON file, relative paths in it",
+                "resolving against its own directory, with optional keys \"declarations\"",
+                "(a .relix file of the only external sources, connections and imports scripts",
+                "may use) and \"limits\" (maxInputChars, maxOutputRows, maxMaterializedRows,",
+                "maxFixpointRounds, maxProcessedRows, timeoutMillis). An unknown key is an",
+                "error. Where FILE and a --max-* option or --timeout both limit, the smaller",
+                "applies."})
     Path sandbox;
 
     @Option(names = "--remote", scope = ScopeType.INHERIT,

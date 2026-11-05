@@ -18,7 +18,7 @@ relix doc [OPTIONS] [TOPIC]
 
 | Option | Description |
 |---|---|
-| `--function` | Look TOPIC up among the functions only, or list only them. |
+| `--function` | Look TOPIC up among the functions only, or list only them. TOPIC may also be a function category (string, json), which lists its functions. |
 | `--markdown` | Print the page's markdown as it is, not rendered. |
 | `--no-pager` | Write the page to standard output even on a terminal. |
 | `-o`, `--output=FORMAT` | The rows' format: table, tsv, csv, ndjson, json or markdown (default: $RELIX_OUTPUT, else relixrc's, else table on a terminal, tsv in a pipe). |
